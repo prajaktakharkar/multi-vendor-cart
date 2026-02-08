@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { HeroSection } from "@/components/travel/HeroSection";
 import { CityCard } from "@/components/travel/CityCard";
 import { TravelChat } from "@/components/travel/TravelChat";
@@ -6,11 +7,12 @@ import { TransportAgent } from "@/components/travel/TransportAgent";
 import { cities } from "@/data/travelData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plane, Building2, MapPin, Car, Users, Shield } from "lucide-react";
+import { Plane, Building2, MapPin, Car, Users, Shield, Sparkles } from "lucide-react";
 
 type ViewState = 'landing' | 'chat' | 'transport';
 
 const Travel = () => {
+  const navigate = useNavigate();
   const [view, setView] = useState<ViewState>('landing');
   const [selectedCity, setSelectedCity] = useState<string | undefined>();
 
@@ -57,7 +59,7 @@ const Travel = () => {
               Choose Your Destination
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              We specialize in these three premier destinations for conferences, 
+              We specialize in these three premier destinations for conferences,
               sporting events, and corporate retreats.
             </p>
           </div>
@@ -113,8 +115,15 @@ const Travel = () => {
                 color: 'text-accent',
                 action: () => handleTransportAgent(),
               },
+              {
+                icon: Sparkles,
+                title: 'AI Retreat Planner',
+                description: 'Full 5-step automated planning for your next team offsite',
+                color: 'text-primary',
+                action: () => navigate('/retreat-planner'),
+              },
             ].map(({ icon: Icon, title, description, color, action }) => (
-              <div 
+              <div
                 key={title}
                 className={`bg-card p-6 rounded-xl border border-border hover:border-primary/30 transition-colors ${action ? 'cursor-pointer' : ''}`}
                 onClick={action}

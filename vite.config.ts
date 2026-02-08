@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      '/api-retreat': {
+        target: 'https://hack-nation-backend-490752502534.europe-west3.run.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-retreat/, ''),
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
