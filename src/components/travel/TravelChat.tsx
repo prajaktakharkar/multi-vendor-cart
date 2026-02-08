@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { ChatMessage, type Message } from "./ChatMessage";
-import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car, Save, CheckCircle, Users } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car, Save, CheckCircle, Users, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cities } from "@/data/travelData";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useAgentChat, useCrewSession } from "@/hooks/useCrewApi";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface Employee {
   id: string;
@@ -50,6 +52,20 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
   const city = cities.find(c => c.id === selectedCity);
   const { user, session, role } = useAuth();
   const isAdmin = role === 'company_admin';
+  
+  // CrewAI agent chat integration
+  const { 
+    sendMessage: sendAgentMessage, 
+    messages: agentMessages, 
+    isLoading: agentLoading, 
+    lastResponse,
+    clearChat: clearAgentChat 
+  } = useAgentChat();
+  const { sessionId } = useCrewSession();
+  
+  // Use CrewAI mode toggle
+  const [useCrewAI, setUseCrewAI] = useState(false);
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -92,6 +108,25 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
     }
   };
 
+  // Sync CrewAI agent messages to local state
+  useEffect(() => {
+    if (useCrewAI && agentMessages.length > 0) {
+      const newMessages: Message[] = agentMessages.map((msg, idx) => ({
+        id: `crew-${idx}-${Date.now()}`,
+        role: msg.role === 'agent' ? 'assistant' : 'user',
+        content: msg.content,
+        timestamp: new Date(),
+        suggestions: msg.suggestions,
+      }));
+      
+      // Keep initial message and add agent messages
+      setMessages(prev => {
+        const initial = prev[0];
+        return [initial, ...newMessages];
+      });
+    }
+  }, [agentMessages, useCrewAI]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -99,8 +134,22 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
   }, [messages]);
 
   const sendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return;
+    if (!content.trim() || isLoading || agentLoading) return;
 
+    // If using CrewAI, delegate to the agent
+    if (useCrewAI) {
+      sendAgentMessage(content, {
+        current_step: 'travel_planning',
+        preferences: {
+          city: selectedCity,
+          cityName: city?.name,
+        }
+      });
+      setInput("");
+      return;
+    }
+
+    // Original Supabase function logic
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -152,6 +201,10 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
       inputRef.current?.focus();
     }
   };
+
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    sendMessage(suggestion);
+  }, [useCrewAI]);
 
   const savePlanToBookings = async () => {
     if (!currentPlan || !user) {
@@ -210,6 +263,11 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
     sendMessage(input);
   };
 
+  const currentLoading = useCrewAI ? agentLoading : isLoading;
+
+  // Get suggestions from last agent response
+  const lastSuggestions = useCrewAI && lastResponse?.suggestions ? lastResponse.suggestions : [];
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto">
       {/* Header */}
@@ -225,6 +283,18 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
             Flights • Hotels • Venues • Ground Transport
           </p>
         </div>
+        
+        {/* CrewAI Toggle */}
+        <Button
+          variant={useCrewAI ? "default" : "outline"}
+          size="sm"
+          onClick={() => setUseCrewAI(!useCrewAI)}
+          className="gap-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          {useCrewAI ? 'CrewAI Active' : 'Use CrewAI'}
+        </Button>
+        
         {city && (
           <img 
             src={city.image} 
@@ -233,6 +303,16 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
           />
         )}
       </div>
+      
+      {/* CrewAI Session Badge */}
+      {useCrewAI && sessionId && (
+        <div className="px-4 pt-2">
+          <Badge variant="secondary" className="text-xs">
+            <Sparkles className="w-3 h-3 mr-1" />
+            CrewAI Session: {sessionId.slice(0, 8)}...
+          </Badge>
+        </div>
+      )}
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
@@ -241,7 +321,7 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
             <ChatMessage key={message.id} message={message} />
           ))}
           
-          {isLoading && (
+          {currentLoading && (
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
                 <Loader2 className="w-4 h-4 animate-spin text-accent-foreground" />
@@ -257,6 +337,25 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
           )}
         </div>
       </ScrollArea>
+
+      {/* CrewAI Suggestions */}
+      {useCrewAI && lastSuggestions.length > 0 && !currentLoading && (
+        <div className="px-4 pb-2">
+          <div className="flex flex-wrap gap-2">
+            {lastSuggestions.map((suggestion, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="rounded-full text-xs"
+                onClick={() => handleSuggestionClick(suggestion)}
+              >
+                {suggestion}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Save Plan Button */}
       {currentPlan && !planSaved && (
@@ -316,9 +415,9 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
       {/* Plan Saved Confirmation */}
       {planSaved && (
         <div className="px-4 pb-2">
-          <Card className="p-4 bg-green-500/10 border-green-500/20">
+          <Card className="p-4 bg-accent/50 border-accent">
             <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-primary" />
               <div>
                 <p className="font-medium text-foreground">Plan Saved!</p>
                 <p className="text-sm text-muted-foreground">
@@ -331,7 +430,7 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
       )}
 
       {/* Quick Actions */}
-      {messages.length <= 2 && (
+      {messages.length <= 2 && !useCrewAI && (
         <div className="px-4 pb-2">
           <div className="flex flex-wrap gap-2 justify-center">
             {quickActions.map(({ icon: Icon, label, prompt }) => (
@@ -341,7 +440,7 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
                 size="sm"
                 className="rounded-full"
                 onClick={() => sendMessage(prompt)}
-                disabled={isLoading}
+                disabled={currentLoading}
               >
                 <Icon className="w-4 h-4 mr-1" />
                 {label}
@@ -358,14 +457,14 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your travel needs..."
+            placeholder={useCrewAI ? "Ask CrewAI about your travel..." : "Describe your travel needs..."}
             className="flex-1 border-0 focus-visible:ring-0 bg-transparent"
-            disabled={isLoading}
+            disabled={currentLoading}
           />
           <Button 
             type="submit" 
             size="icon"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || currentLoading}
             className="rounded-full"
           >
             <Send className="w-4 h-4" />
