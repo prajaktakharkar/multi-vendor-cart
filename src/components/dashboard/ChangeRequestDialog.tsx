@@ -11,11 +11,12 @@ import { Loader2 } from 'lucide-react';
 
 interface Booking {
   id: string;
-  booking_type: 'flight' | 'hotel' | 'car';
+  booking_type: 'flight' | 'hotel' | 'car' | 'travel_package';
   details: {
     airline?: string;
     hotelName?: string;
     provider?: string;
+    destination?: string;
     [key: string]: unknown;
   };
   start_date: string | null;

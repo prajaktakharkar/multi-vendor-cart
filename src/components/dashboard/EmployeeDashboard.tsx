@@ -8,13 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, LogOut, Calendar,
   Clock, MapPin, CheckCircle, ArrowRight,
-  CalendarDays, Timer, MessageSquare, Edit, Send
+  CalendarDays, Timer, MessageSquare, Edit, Send, Package
 } from 'lucide-react';
 import { format, isAfter, isBefore, isToday, differenceInDays } from 'date-fns';
 import { ChangeRequestDialog } from './ChangeRequestDialog';
 import { MyRequestsPanel } from './MyRequestsPanel';
 import { NewTravelRequestDialog } from './NewTravelRequestDialog';
 import { MyTravelRequests } from './MyTravelRequests';
+import { ManageBookingDialog } from './ManageBookingDialog';
 interface BookingDetails {
   // Flight details
   airline?: string;
@@ -46,7 +47,7 @@ interface BookingDetails {
 
 interface Booking {
   id: string;
-  booking_type: 'flight' | 'hotel' | 'car';
+  booking_type: 'flight' | 'hotel' | 'car' | 'travel_package';
   status: 'pending' | 'confirmed' | 'cancelled';
   details: BookingDetails;
   start_date: string | null;
@@ -63,6 +64,8 @@ export const EmployeeDashboard = () => {
   const [requestsRefreshKey, setRequestsRefreshKey] = useState(0);
   const [newTravelDialogOpen, setNewTravelDialogOpen] = useState(false);
   const [travelRequestsRefreshKey, setTravelRequestsRefreshKey] = useState(0);
+  const [manageBookingDialogOpen, setManageBookingDialogOpen] = useState(false);
+  const [selectedBookingForManage, setSelectedBookingForManage] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -93,6 +96,7 @@ export const EmployeeDashboard = () => {
       case 'flight': return <Plane className="w-5 h-5" />;
       case 'hotel': return <Building2 className="w-5 h-5" />;
       case 'car': return <Car className="w-5 h-5" />;
+      case 'travel_package': return <Package className="w-5 h-5" />;
       default: return null;
     }
   };
@@ -102,6 +106,7 @@ export const EmployeeDashboard = () => {
       case 'flight': return 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400';
       case 'hotel': return 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400';
       case 'car': return 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400';
+      case 'travel_package': return 'bg-amber-100 text-amber-600 dark:bg-amber-900 dark:text-amber-400';
       default: return '';
     }
   };
@@ -168,7 +173,7 @@ export const EmployeeDashboard = () => {
       <Card className="overflow-hidden hover:shadow-md transition-shadow">
         <CardContent className="p-0">
           <div className="flex">
-            <div className={`w-2 ${booking.booking_type === 'flight' ? 'bg-blue-500' : booking.booking_type === 'hotel' ? 'bg-purple-500' : 'bg-green-500'}`} />
+            <div className={`w-2 ${booking.booking_type === 'flight' ? 'bg-blue-500' : booking.booking_type === 'hotel' ? 'bg-purple-500' : booking.booking_type === 'travel_package' ? 'bg-amber-500' : 'bg-green-500'}`} />
             <div className="flex-1 p-4">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
@@ -181,11 +186,13 @@ export const EmployeeDashboard = () => {
                       {booking.booking_type === 'flight' && (details.airline || 'Flight')}
                       {booking.booking_type === 'hotel' && (details.hotelName || 'Hotel')}
                       {booking.booking_type === 'car' && (details.provider || 'Car Rental')}
+                      {booking.booking_type === 'travel_package' && ((details as any).destination ? `Trip to ${(details as any).destination}` : 'Travel Package')}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {booking.booking_type === 'flight' && details.flightNumber && `Flight ${details.flightNumber}`}
                       {booking.booking_type === 'hotel' && details.roomType && `${details.roomType.charAt(0).toUpperCase() + details.roomType.slice(1)} Room`}
                       {booking.booking_type === 'car' && details.vehicleType && `${details.vehicleType.charAt(0).toUpperCase() + details.vehicleType.slice(1)} Vehicle`}
+                      {booking.booking_type === 'travel_package' && (details as any).attendees && `${(details as any).attendees} travelers`}
                     </p>
                   </div>
                 </div>
@@ -193,7 +200,7 @@ export const EmployeeDashboard = () => {
                   {booking.status === 'confirmed' && <CheckCircle className="w-3 h-3 mr-1" />}
                   {booking.status}
                 </Badge>
-                {showChangeButton && booking.status !== 'cancelled' && (
+                {showChangeButton && booking.status !== 'cancelled' && booking.booking_type !== 'travel_package' && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -205,6 +212,21 @@ export const EmployeeDashboard = () => {
                   >
                     <Edit className="w-4 h-4 mr-1" />
                     Request Changes
+                  </Button>
+                )}
+                {booking.booking_type === 'travel_package' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedBookingForManage(booking);
+                      setManageBookingDialogOpen(true);
+                    }}
+                    className="h-8"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Manage
                   </Button>
                 )}
               </div>
@@ -304,6 +326,43 @@ export const EmployeeDashboard = () => {
                           <span className="text-muted-foreground">Drop-off: </span>
                           <span className="font-medium">{formatDateTime(details.dropoffTime) || formatDateTime(booking.end_date || undefined)}</span>
                         </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Travel Package Details */}
+                {booking.booking_type === 'travel_package' && (
+                  <>
+                    {(details as any).destination && (
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="font-medium">{(details as any).destination}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <CalendarDays className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="text-sm flex items-center gap-2 flex-wrap">
+                        <div>
+                          <span className="text-muted-foreground">From: </span>
+                          <span className="font-medium">{formatDate(booking.start_date || undefined) || 'TBD'}</span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <span className="text-muted-foreground">To: </span>
+                          <span className="font-medium">{formatDate(booking.end_date || undefined) || 'TBD'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {(details as any).attendees && (
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm">{(details as any).attendees} travelers • ${((details as any).budget || 0).toLocaleString()} budget</span>
+                      </div>
+                    )}
+                    {((details as any).cart?.total || (details as any).package?.total_cost) && (
+                      <div className="flex items-center gap-3 pt-2 border-t border-border">
+                        <span className="text-sm font-medium">Total: ${((details as any).cart?.total || (details as any).package?.total_cost || 0).toLocaleString()}</span>
                       </div>
                     )}
                   </>
@@ -511,6 +570,17 @@ export const EmployeeDashboard = () => {
         open={newTravelDialogOpen}
         onOpenChange={setNewTravelDialogOpen}
         onRequestSubmitted={() => setTravelRequestsRefreshKey(k => k + 1)}
+      />
+
+      {/* Manage Booking Dialog */}
+      <ManageBookingDialog
+        booking={selectedBookingForManage}
+        open={manageBookingDialogOpen}
+        onOpenChange={setManageBookingDialogOpen}
+        onBookingUpdated={() => {
+          fetchBookings();
+          setRequestsRefreshKey(k => k + 1);
+        }}
       />
     </div>
   );
