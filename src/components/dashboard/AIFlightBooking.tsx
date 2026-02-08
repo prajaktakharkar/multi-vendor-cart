@@ -10,7 +10,27 @@ import { Plane, Send, Bot, User, Loader2, Sparkles, Building2, Car, MapPin, Star
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { BookingCart, CartItem } from './BookingCart';
+import { BookingConfirmationDialog } from './BookingConfirmationDialog';
 import { useAuth } from '@/hooks/useAuth';
+
+// Generate a confirmation number
+const generateConfirmationNumber = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = 'TD-';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+interface ConfirmationData {
+  confirmationNumber: string;
+  items: CartItem[];
+  subtotal: number;
+  taxes: number;
+  total: number;
+  bookedAt: string;
+}
 
 interface Message {
   role: 'user' | 'assistant';
@@ -70,6 +90,7 @@ export const AIFlightBooking = () => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>(SAMPLE_CART_ITEMS);
   const [showCart, setShowCart] = useState(true);
+  const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResults>({
     flights: [],
     hotels: [],
@@ -204,10 +225,14 @@ export const AIFlightBooking = () => {
 
     setIsCheckingOut(true);
     try {
-      const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const taxes = total * 0.08;
+      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const taxes = subtotal * 0.08;
+      const total = subtotal + taxes;
+      const bookedAt = new Date().toISOString();
+      const confirmationNumber = generateConfirmationNumber();
 
       const bookingDetails = {
+        confirmationNumber,
         items: cartItems.map(item => ({
           id: item.id,
           type: item.type,
@@ -216,10 +241,10 @@ export const AIFlightBooking = () => {
           price: item.price,
           quantity: item.quantity,
         })),
-        subtotal: total,
-        taxes: taxes,
-        total: total + taxes,
-        bookedAt: new Date().toISOString(),
+        subtotal,
+        taxes,
+        total,
+        bookedAt,
       };
 
       const { error } = await supabase.from('bookings').insert([{
@@ -232,7 +257,16 @@ export const AIFlightBooking = () => {
 
       if (error) throw error;
 
-      toast.success('Booking confirmed! Your travel package has been booked.');
+      // Show confirmation dialog
+      setConfirmationData({
+        confirmationNumber,
+        items: [...cartItems],
+        subtotal,
+        taxes,
+        total,
+        bookedAt,
+      });
+      
       setCartItems([]);
     } catch (err) {
       console.error('Checkout error:', err);
@@ -240,6 +274,11 @@ export const AIFlightBooking = () => {
     } finally {
       setIsCheckingOut(false);
     }
+  };
+
+  const handleCloseConfirmation = () => {
+    setConfirmationData(null);
+    toast.success('Booking complete! Check your email for details.');
   };
 
   const addFlightToCart = (flight: any) => {
@@ -626,6 +665,20 @@ export const AIFlightBooking = () => {
           isCheckingOut={isCheckingOut}
         />
       </div>
+
+      {/* Confirmation Dialog */}
+      {confirmationData && (
+        <BookingConfirmationDialog
+          open={!!confirmationData}
+          onClose={handleCloseConfirmation}
+          confirmationNumber={confirmationData.confirmationNumber}
+          items={confirmationData.items}
+          subtotal={confirmationData.subtotal}
+          taxes={confirmationData.taxes}
+          total={confirmationData.total}
+          bookedAt={confirmationData.bookedAt}
+        />
+      )}
     </div>
   );
 };
