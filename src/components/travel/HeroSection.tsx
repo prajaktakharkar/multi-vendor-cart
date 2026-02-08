@@ -51,10 +51,10 @@ export const HeroSection = () => {
           <span className="block text-primary">Perfect Trip</span>
         </h1>
         
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">Book flights, hotels, conference venues, and ground transportation for your business conference, sports team, or corporate retreat.
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">Book flights, hotels, conference venues, and ground transportation for your business conference, sports team, or corporate retreat. 
 
 
-Tell us what you need and we</p>
+In a single click!</p>
         
         <Button size="lg" onClick={handleStartPlanning} className="text-lg px-8 py-6 rounded-full shadow-lg hover:shadow-xl transition-all">
           <Calendar className="w-5 h-5 mr-2" />
