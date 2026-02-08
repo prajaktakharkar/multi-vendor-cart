@@ -16,8 +16,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { retreatApi, Weights } from "@/services/retreatApi";
 import { toast } from "sonner";
 import { DiscoverySkeleton } from "@/components/travel/DiscoverySkeleton";
+import { CartSkeleton } from "@/components/travel/CartSkeleton";
 
-type Step = 'input' | 'discovering' | 'packages' | 'cart' | 'success';
+type Step = 'input' | 'discovering' | 'packages' | 'building-cart' | 'cart' | 'success';
 
 interface CartItem {
   item: any;
@@ -120,16 +121,18 @@ export default function TravelSearch() {
   // Step 2: Select package and build cart
   const handleSelectPackage = async (pkg: any) => {
     setIsLoading(true);
+    setSelectedPackage(pkg);
+    setStep('building-cart');
     
     try {
       // Agent 4: Build cart
       const cartRes = await retreatApi.buildCart(sessionId, pkg.package_id || pkg.id);
       const cartData = cartRes.cart || cartRes.data || cartRes;
       setCartDetails(cartData);
-      setSelectedPackage(pkg);
       setStep('cart');
     } catch (error) {
       toast.error('Failed to build cart');
+      setStep('packages');
     } finally {
       setIsLoading(false);
     }
@@ -164,7 +167,7 @@ export default function TravelSearch() {
 
   const handleBack = () => {
     if (step === 'packages') setStep('input');
-    else if (step === 'cart') setStep('packages');
+    else if (step === 'cart' || step === 'building-cart') setStep('packages');
     else if (step === 'success') {
       setStep('input');
       setSessionId('');
@@ -501,6 +504,11 @@ export default function TravelSearch() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* Building Cart Skeleton */}
+          {step === 'building-cart' && (
+            <CartSkeleton />
           )}
 
           {/* Step 3: Cart */}
