@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, LogOut, Calendar,
   Clock, MapPin, CheckCircle, ArrowRight,
-  CalendarDays, Timer
+  CalendarDays, Timer, MessageSquare, Edit
 } from 'lucide-react';
 import { format, isAfter, isBefore, isToday, differenceInDays } from 'date-fns';
-
+import { ChangeRequestDialog } from './ChangeRequestDialog';
+import { MyRequestsPanel } from './MyRequestsPanel';
 interface BookingDetails {
   // Flight details
   airline?: string;
@@ -37,6 +38,8 @@ interface BookingDetails {
   dropoffLocation?: string;
   pickupTime?: string;
   dropoffTime?: string;
+  // Index signature for compatibility
+  [key: string]: unknown;
 }
 
 interface Booking {
@@ -53,6 +56,9 @@ export const EmployeeDashboard = () => {
   const { user, profile, signOut } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [changeRequestDialogOpen, setChangeRequestDialogOpen] = useState(false);
+  const [selectedBookingForChange, setSelectedBookingForChange] = useState<Booking | null>(null);
+  const [requestsRefreshKey, setRequestsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -117,9 +123,13 @@ export const EmployeeDashboard = () => {
     b.start_date && isBefore(new Date(b.start_date), new Date()) && !isToday(new Date(b.start_date))
   );
 
-  const BookingCard = ({ booking }: { booking: Booking }) => {
+  const BookingCard = ({ booking, showChangeButton = true }: { booking: Booking; showChangeButton?: boolean }) => {
     const details = booking.details;
     
+    const handleRequestChange = () => {
+      setSelectedBookingForChange(booking);
+      setChangeRequestDialogOpen(true);
+    };
     const formatDateTime = (dateStr?: string) => {
       if (!dateStr) return null;
       try {
@@ -179,6 +189,20 @@ export const EmployeeDashboard = () => {
                   {booking.status === 'confirmed' && <CheckCircle className="w-3 h-3 mr-1" />}
                   {booking.status}
                 </Badge>
+                {showChangeButton && booking.status !== 'cancelled' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRequestChange();
+                    }}
+                    className="h-8"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Request Changes
+                  </Button>
+                )}
               </div>
 
               {/* Details Grid */}
@@ -383,6 +407,10 @@ export const EmployeeDashboard = () => {
               Upcoming ({upcomingBookings.length})
             </TabsTrigger>
             <TabsTrigger value="all">All Bookings</TabsTrigger>
+            <TabsTrigger value="requests" className="flex items-center gap-1.5">
+              <MessageSquare className="w-4 h-4" />
+              My Requests
+            </TabsTrigger>
             <TabsTrigger value="past">Past</TabsTrigger>
           </TabsList>
 
@@ -428,6 +456,10 @@ export const EmployeeDashboard = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="requests">
+            <MyRequestsPanel key={requestsRefreshKey} />
+          </TabsContent>
+
           <TabsContent value="past">
             {pastBookings.length === 0 ? (
               <Card>
@@ -442,13 +474,21 @@ export const EmployeeDashboard = () => {
             ) : (
               <div className="space-y-4">
                 {pastBookings.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} />
+                  <BookingCard key={booking.id} booking={booking} showChangeButton={false} />
                 ))}
               </div>
             )}
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Change Request Dialog */}
+      <ChangeRequestDialog
+        booking={selectedBookingForChange}
+        open={changeRequestDialogOpen}
+        onOpenChange={setChangeRequestDialogOpen}
+        onRequestSubmitted={() => setRequestsRefreshKey(k => k + 1)}
+      />
     </div>
   );
 };
