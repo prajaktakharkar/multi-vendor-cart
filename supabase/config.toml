@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.book-flight]
 verify_jwt = false
+
+[functions.ai-flight-agent]
+verify_jwt = false
