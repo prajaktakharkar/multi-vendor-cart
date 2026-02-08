@@ -75,6 +75,12 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
             <span className="font-bold text-xl text-white drop-shadow-lg">Touchdown</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link to="/travel">
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                <Plane className="w-4 h-4 mr-2" />
+                Travel
+              </Button>
+            </Link>
             {activeSessionId && (
               <Link to={`/checkout?session_id=${activeSessionId}`}>
                 <Button variant="secondary" size="sm" className="gap-2">
