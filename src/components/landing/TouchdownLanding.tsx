@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { TouchdownHero } from "./TouchdownHero";
 import { DestinationCard } from "./DestinationCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plane, Hotel, Ticket, Car, Shield, Clock, Headphones, Trophy } from "lucide-react";
-import { TravelChat } from "@/components/travel/TravelChat";
 
 import newOrleansImg from "@/assets/destination-new-orleans.jpg";
 import lasVegasImg from "@/assets/destination-las-vegas.jpg";
@@ -74,27 +73,15 @@ const trustSignals = [
 ];
 
 export const TouchdownLanding = () => {
-  const [view, setView] = useState<"landing" | "chat">("landing");
-  const [selectedCity, setSelectedCity] = useState<string | undefined>();
+  const navigate = useNavigate();
 
   const handleStartPlanning = () => {
-    setSelectedCity(undefined);
-    setView("chat");
+    navigate("/search");
   };
 
   const handleDestinationClick = (cityId: string) => {
-    setSelectedCity(cityId);
-    setView("chat");
+    navigate(`/search?city=${cityId}`);
   };
-
-  const handleBack = () => {
-    setView("landing");
-    setSelectedCity(undefined);
-  };
-
-  if (view === "chat") {
-    return <TravelChat selectedCity={selectedCity} onBack={handleBack} />;
-  }
 
   return (
     <div className="min-h-screen bg-background">

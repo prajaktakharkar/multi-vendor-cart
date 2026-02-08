@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Trophy, Plane, Hotel, Car, Ticket, LogIn } from "lucide-react";
@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import heroStadium from "@/assets/hero-stadium.jpg";
 
 interface TouchdownHeroProps {
-  onStartPlanning: () => void;
+  onStartPlanning?: () => void;
 }
 
 interface TimeLeft {
@@ -35,6 +35,7 @@ const calculateTimeLeft = (): TimeLeft => {
 
 export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,6 +45,14 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
     return () => clearInterval(timer);
   }, []);
   const { user } = useAuth();
+
+  const handleStartPlanning = () => {
+    if (onStartPlanning) {
+      onStartPlanning();
+    } else {
+      navigate("/search");
+    }
+  };
 
   return (
     <>
@@ -124,7 +133,7 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg" 
-              onClick={onStartPlanning} 
+              onClick={handleStartPlanning} 
               className="text-lg px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all bg-primary hover:bg-primary/90"
             >
               <Ticket className="w-5 h-5 mr-2" />
