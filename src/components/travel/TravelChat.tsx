@@ -4,9 +4,21 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { ChatMessage, type Message } from "./ChatMessage";
-import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car, Save, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cities } from "@/data/travelData";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+
+interface TravelPlan {
+  plan_summary: string;
+  bookings: Array<{
+    booking_type: 'flight' | 'hotel' | 'car';
+    details: Record<string, unknown>;
+    start_date?: string;
+    end_date?: string;
+  }>;
+}
 
 interface TravelChatProps {
   selectedCity?: string;
@@ -22,6 +34,7 @@ const quickActions = [
 
 export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
   const city = cities.find(c => c.id === selectedCity);
+  const { user, session } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -34,6 +47,9 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<TravelPlan | null>(null);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [planSaved, setPlanSaved] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +72,8 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setCurrentPlan(null);
+    setPlanSaved(false);
 
     try {
       const { data, error } = await supabase.functions.invoke('travel-assistant', {
@@ -76,6 +94,11 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Check if there's a travel plan
+      if (data.travelPlan) {
+        setCurrentPlan(data.travelPlan);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
@@ -88,6 +111,47 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
+    }
+  };
+
+  const savePlanToBookings = async () => {
+    if (!currentPlan || !user) {
+      toast.error('Please sign in to save bookings');
+      return;
+    }
+
+    setIsSavingPlan(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('travel-assistant', {
+        body: { 
+          saveBookings: true,
+          bookingsToSave: currentPlan.bookings
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setPlanSaved(true);
+        toast.success(data.message || 'Bookings saved successfully!');
+        
+        // Add confirmation message to chat
+        const confirmMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `✅ **Bookings Saved!**\n\nI've added ${currentPlan.bookings.length} booking(s) to your dashboard. You can view and manage them from the Dashboard page.\n\nIs there anything else you'd like to plan?`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, confirmMessage]);
+      } else {
+        throw new Error(data.error || 'Failed to save bookings');
+      }
+    } catch (error: any) {
+      console.error('Save error:', error);
+      toast.error(error.message || 'Failed to save bookings');
+    } finally {
+      setIsSavingPlan(false);
     }
   };
 
@@ -143,6 +207,51 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
           )}
         </div>
       </ScrollArea>
+
+      {/* Save Plan Button */}
+      {currentPlan && !planSaved && (
+        <div className="px-4 pb-2">
+          <Card className="p-4 bg-primary/5 border-primary/20">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-foreground">Travel Plan Ready</p>
+                <p className="text-sm text-muted-foreground">
+                  {currentPlan.bookings.length} booking(s) • {currentPlan.plan_summary}
+                </p>
+              </div>
+              <Button 
+                onClick={savePlanToBookings} 
+                disabled={isSavingPlan || !user}
+                className="shrink-0"
+              >
+                {isSavingPlan ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                {user ? 'Save Plan to Bookings' : 'Sign in to Save'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Plan Saved Confirmation */}
+      {planSaved && (
+        <div className="px-4 pb-2">
+          <Card className="p-4 bg-green-500/10 border-green-500/20">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="font-medium text-foreground">Plan Saved!</p>
+                <p className="text-sm text-muted-foreground">
+                  View your bookings in the Dashboard
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Quick Actions */}
       {messages.length <= 2 && (

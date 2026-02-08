@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,15 +53,127 @@ const travelData = {
   ],
 };
 
+// Tool definitions for the AI
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "create_travel_plan",
+      description: "Creates a structured travel plan that can be saved as bookings. Use this when you have enough information to create a complete travel plan for the user.",
+      parameters: {
+        type: "object",
+        properties: {
+          plan_summary: {
+            type: "string",
+            description: "A brief summary of the travel plan"
+          },
+          bookings: {
+            type: "array",
+            description: "Array of bookings to create",
+            items: {
+              type: "object",
+              properties: {
+                booking_type: {
+                  type: "string",
+                  enum: ["flight", "hotel", "car"],
+                  description: "Type of booking"
+                },
+                details: {
+                  type: "object",
+                  description: "Booking details"
+                },
+                start_date: {
+                  type: "string",
+                  description: "Start date in ISO format (YYYY-MM-DD)"
+                },
+                end_date: {
+                  type: "string",
+                  description: "End date in ISO format (YYYY-MM-DD)"
+                }
+              },
+              required: ["booking_type", "details"]
+            }
+          }
+        },
+        required: ["plan_summary", "bookings"]
+      }
+    }
+  }
+];
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { message, cityId, conversationHistory } = await req.json();
+    const { message, cityId, conversationHistory, saveBookings, bookingsToSave } = await req.json();
     
-    console.log('Travel assistant request:', { message, cityId, historyLength: conversationHistory?.length });
+    console.log('Travel assistant request:', { message, cityId, historyLength: conversationHistory?.length, saveBookings });
+
+    // Handle saving bookings
+    if (saveBookings && bookingsToSave) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Please sign in to save bookings' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: claims, error: authError } = await supabase.auth.getClaims(token);
+      
+      if (authError || !claims?.claims) {
+        return new Response(
+          JSON.stringify({ error: 'Please sign in to save bookings' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+
+      const userId = claims.claims.sub;
+      console.log('Saving bookings for user:', userId);
+
+      // Insert all bookings
+      const bookingsWithUser = bookingsToSave.map((booking: any) => ({
+        user_id: userId,
+        created_by: userId,
+        booking_type: booking.booking_type,
+        status: 'confirmed',
+        details: booking.details,
+        start_date: booking.start_date || null,
+        end_date: booking.end_date || null,
+      }));
+
+      const { data: insertedBookings, error: insertError } = await supabase
+        .from('bookings')
+        .insert(bookingsWithUser)
+        .select();
+
+      if (insertError) {
+        console.error('Error saving bookings:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save bookings: ' + insertError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
+      console.log('Bookings saved successfully:', insertedBookings?.length);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Successfully saved ${insertedBookings?.length || 0} bookings!`,
+          bookings: insertedBookings 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Build context based on city
     const cityData = cityId ? travelData.cities[cityId as keyof typeof travelData.cities] : null;
@@ -100,11 +213,20 @@ GUIDELINES:
 - Ask clarifying questions about: group size, dates, budget, event type
 - Provide specific recommendations with prices when possible
 - For flights, acknowledge you'd search Amadeus/Sabre for real-time options
-- Offer to create detailed itineraries
 - Format responses clearly with bullet points and sections
-- Keep responses concise but informative`;
+- Keep responses concise but informative
 
-    // Call Lovable AI Gateway
+IMPORTANT - CREATING TRAVEL PLANS:
+When the user has provided enough information (dates, group size, preferences), you MUST use the create_travel_plan tool to generate a structured plan. This allows the user to save the bookings directly.
+
+When creating a plan:
+- Include flight bookings with airline, departure/arrival cities and times
+- Include hotel bookings with hotel name, location, room type
+- Include car/transport bookings with provider, vehicle type, pickup/dropoff
+
+Always use the tool when you have enough details to create a complete plan. Even if some details are estimated, create the plan so the user can review and save it.`;
+
+    // Call Lovable AI Gateway with tools
     const aiResponse = await fetch('https://ai-gateway.lovable.dev/api/chat', {
       method: 'POST',
       headers: {
@@ -119,7 +241,9 @@ GUIDELINES:
           { role: 'user', content: message }
         ],
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 2048,
+        tools,
+        tool_choice: 'auto',
       }),
     });
 
@@ -130,12 +254,62 @@ GUIDELINES:
     }
 
     const aiData = await aiResponse.json();
-    const response = aiData.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
+    const choice = aiData.choices?.[0];
+    
+    let response = choice?.message?.content || "";
+    let travelPlan = null;
 
-    console.log('AI response generated successfully');
+    // Check if the AI called a tool
+    if (choice?.message?.tool_calls?.length > 0) {
+      for (const toolCall of choice.message.tool_calls) {
+        if (toolCall.function?.name === 'create_travel_plan') {
+          try {
+            travelPlan = JSON.parse(toolCall.function.arguments);
+            console.log('Travel plan created:', travelPlan);
+            
+            // Generate a nice response with the plan
+            response = `## 🎉 Your Travel Plan is Ready!\n\n**${travelPlan.plan_summary}**\n\n`;
+            
+            if (travelPlan.bookings?.length > 0) {
+              response += "### Included Bookings:\n\n";
+              for (const booking of travelPlan.bookings) {
+                const icon = booking.booking_type === 'flight' ? '✈️' : 
+                            booking.booking_type === 'hotel' ? '🏨' : '🚗';
+                response += `${icon} **${booking.booking_type.charAt(0).toUpperCase() + booking.booking_type.slice(1)}**\n`;
+                
+                const details = booking.details;
+                if (booking.booking_type === 'flight') {
+                  response += `- ${details.airline || 'Airline TBD'} ${details.flightNumber || ''}\n`;
+                  response += `- ${details.departure || 'Origin'} → ${details.arrival || 'Destination'}\n`;
+                  if (details.departureTime) response += `- Departure: ${details.departureTime}\n`;
+                } else if (booking.booking_type === 'hotel') {
+                  response += `- ${details.hotelName || 'Hotel TBD'}\n`;
+                  response += `- ${details.location || 'Location TBD'}\n`;
+                  if (details.roomType) response += `- Room: ${details.roomType}\n`;
+                  if (details.checkIn && details.checkOut) response += `- ${details.checkIn} to ${details.checkOut}\n`;
+                } else if (booking.booking_type === 'car') {
+                  response += `- ${details.provider || 'Provider TBD'} - ${details.vehicleType || 'Vehicle TBD'}\n`;
+                  response += `- ${details.pickupLocation || 'Pickup TBD'} → ${details.dropoffLocation || 'Dropoff TBD'}\n`;
+                }
+                response += '\n';
+              }
+              response += "\n---\n*Click **Save Plan to Bookings** below to add these to your dashboard!*";
+            }
+          } catch (e) {
+            console.error('Error parsing tool arguments:', e);
+          }
+        }
+      }
+    }
+
+    if (!response && !travelPlan) {
+      response = "I'm sorry, I couldn't generate a response. Please try again.";
+    }
+
+    console.log('AI response generated successfully, has plan:', !!travelPlan);
 
     return new Response(
-      JSON.stringify({ response }),
+      JSON.stringify({ response, travelPlan }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
