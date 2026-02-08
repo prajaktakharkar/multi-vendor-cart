@@ -8,44 +8,34 @@ import { cities } from "@/data/travelData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plane, Building2, MapPin, Car, Users, Shield, Sparkles } from "lucide-react";
-
 type ViewState = 'landing' | 'chat' | 'transport';
-
 const Travel = () => {
   const navigate = useNavigate();
   const [view, setView] = useState<ViewState>('landing');
   const [selectedCity, setSelectedCity] = useState<string | undefined>();
-
   const handleCitySelect = (cityId: string) => {
     setSelectedCity(cityId);
     setView('chat');
   };
-
   const handleStartPlanning = () => {
     setSelectedCity(undefined);
     setView('chat');
   };
-
   const handleTransportAgent = (cityId?: string) => {
     setSelectedCity(cityId);
     setView('transport');
   };
-
   const handleBack = () => {
     setView('landing');
     setSelectedCity(undefined);
   };
-
   if (view === 'chat') {
     return <TravelChat selectedCity={selectedCity} onBack={handleBack} />;
   }
-
   if (view === 'transport') {
     return <TransportAgent selectedCity={selectedCity} onBack={handleBack} />;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <HeroSection onStartPlanning={handleStartPlanning} />
 
       {/* Featured Cities */}
@@ -64,15 +54,7 @@ const Travel = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {cities.map((city) => (
-              <CityCard
-                key={city.id}
-                city={city}
-                onClick={() => handleCitySelect(city.id)}
-              />
-            ))}
-          </div>
+          
         </div>
       </section>
 
@@ -89,57 +71,49 @@ const Travel = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {[
-              {
-                icon: Plane,
-                title: 'Flights',
-                description: 'Real-time booking via Amadeus & Sabre with group discounts',
-                color: 'text-primary',
-              },
-              {
-                icon: Building2,
-                title: 'Hotels',
-                description: 'Premium accommodations with negotiated corporate rates',
-                color: 'text-accent',
-              },
-              {
-                icon: MapPin,
-                title: 'Conference Venues',
-                description: 'Top venues with full AV and catering services',
-                color: 'text-primary',
-              },
-              {
-                icon: Car,
-                title: 'Ground Transport',
-                description: 'Uber & Lyft coordination for seamless transfers',
-                color: 'text-accent',
-                action: () => handleTransportAgent(),
-              },
-              {
-                icon: Sparkles,
-                title: 'AI Retreat Planner',
-                description: 'Full 5-step automated planning for your next team offsite',
-                color: 'text-primary',
-                action: () => navigate('/retreat-planner'),
-              },
-            ].map(({ icon: Icon, title, description, color, action }) => (
-              <div
-                key={title}
-                className={`bg-card p-6 rounded-xl border border-border hover:border-primary/30 transition-colors ${action ? 'cursor-pointer' : ''}`}
-                onClick={action}
-              >
+            {[{
+            icon: Plane,
+            title: 'Flights',
+            description: 'Real-time booking via Amadeus & Sabre with group discounts',
+            color: 'text-primary'
+          }, {
+            icon: Building2,
+            title: 'Hotels',
+            description: 'Premium accommodations with negotiated corporate rates',
+            color: 'text-accent'
+          }, {
+            icon: MapPin,
+            title: 'Conference Venues',
+            description: 'Top venues with full AV and catering services',
+            color: 'text-primary'
+          }, {
+            icon: Car,
+            title: 'Ground Transport',
+            description: 'Uber & Lyft coordination for seamless transfers',
+            color: 'text-accent',
+            action: () => handleTransportAgent()
+          }, {
+            icon: Sparkles,
+            title: 'AI Retreat Planner',
+            description: 'Full 5-step automated planning for your next team offsite',
+            color: 'text-primary',
+            action: () => navigate('/retreat-planner')
+          }].map(({
+            icon: Icon,
+            title,
+            description,
+            color,
+            action
+          }) => <div key={title} className={`bg-card p-6 rounded-xl border border-border hover:border-primary/30 transition-colors ${action ? 'cursor-pointer' : ''}`} onClick={action}>
                 <div className={`w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4`}>
                   <Icon className={`w-6 h-6 ${color}`} />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">{title}</h3>
                 <p className="text-sm text-muted-foreground">{description}</p>
-                {action && (
-                  <Button variant="link" className="p-0 h-auto mt-2 text-primary">
+                {action && <Button variant="link" className="p-0 h-auto mt-2 text-primary">
                     Compare & Book →
-                  </Button>
-                )}
-              </div>
-            ))}
+                  </Button>}
+              </div>)}
           </div>
         </div>
       </section>
@@ -148,16 +122,22 @@ const Travel = () => {
       <section className="py-16 px-6">
         <div className="container mx-auto">
           <div className="flex flex-wrap justify-center gap-8 md:gap-16">
-            {[
-              { icon: Users, label: '10,000+ Travelers Booked' },
-              { icon: Shield, label: 'Secure Payments' },
-              { icon: Building2, label: '500+ Partner Venues' },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-3 text-muted-foreground">
+            {[{
+            icon: Users,
+            label: '10,000+ Travelers Booked'
+          }, {
+            icon: Shield,
+            label: 'Secure Payments'
+          }, {
+            icon: Building2,
+            label: '500+ Partner Venues'
+          }].map(({
+            icon: Icon,
+            label
+          }) => <div key={label} className="flex items-center gap-3 text-muted-foreground">
                 <Icon className="w-5 h-5" />
                 <span className="text-sm font-medium">{label}</span>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -168,8 +148,6 @@ const Travel = () => {
           <p>© 2024 Group Travel Planner. Powered by AI.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Travel;
