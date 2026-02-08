@@ -20,3 +20,12 @@ verify_jwt = false
 
 [functions.ai-flight-agent]
 verify_jwt = false
+
+[functions.search-hotels]
+verify_jwt = false
+
+[functions.search-venues]
+verify_jwt = false
+
+[functions.search-transport]
+verify_jwt = false
