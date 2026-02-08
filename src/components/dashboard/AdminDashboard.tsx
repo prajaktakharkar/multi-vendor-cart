@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, Users, Calendar, LogOut, 
-  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings, Sparkles, UserCheck 
+  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings, Sparkles, UserCheck, UsersRound 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateBookingDialog } from './CreateBookingDialog';
@@ -20,6 +20,7 @@ import { FlightCredentialsPanel } from './FlightCredentialsPanel';
 import { AIFlightBooking } from './AIFlightBooking';
 import { TeamRosterPanel } from './TeamRosterPanel';
 import { MyBookingsPanel } from './MyBookingsPanel';
+import { TripTeamSelector } from './TripTeamSelector';
 
 interface Booking {
   id: string;
@@ -229,6 +230,10 @@ export const AdminDashboard = () => {
               <UserCheck className="w-4 h-4" />
               Team Roster
             </TabsTrigger>
+            <TabsTrigger value="trip-selection" className="flex items-center gap-1.5">
+              <UsersRound className="w-4 h-4" />
+              Trip Selection
+            </TabsTrigger>
             <TabsTrigger value="employees">Employees</TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1.5">
               <Settings className="w-4 h-4" />
@@ -326,6 +331,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="team-roster">
             <TeamRosterPanel />
+          </TabsContent>
+
+          <TabsContent value="trip-selection">
+            <TripTeamSelector />
           </TabsContent>
 
           <TabsContent value="calendar">
