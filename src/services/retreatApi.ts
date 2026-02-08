@@ -1,4 +1,7 @@
-const BASE_URL = "/api-retreat";
+// Use proxy in development, direct URL in production
+const BASE_URL = import.meta.env.DEV
+  ? "/api-retreat"
+  : "https://hack-nation-backend-490752502534.europe-west3.run.app";
 
 export interface AnalyzeRequirementsResponse {
   session_id: string;
