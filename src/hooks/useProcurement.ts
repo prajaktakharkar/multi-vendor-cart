@@ -12,13 +12,32 @@ export interface ProcurementItem {
   category: string;
   reason: string;
   totalCost: number;
+  isTravel?: boolean;
+}
+
+export interface TravelDetails {
+  originCity: string;
+  destinationCity: string;
+  startDate: string;
+  endDate: string;
+  nights?: number;
+}
+
+export interface CostBreakdown {
+  travel: number;
+  accommodation: number;
+  supplies: number;
+  other: number;
 }
 
 export interface ProcurementPlan {
   eventSummary: string;
+  travelSummary?: string | null;
   items: ProcurementItem[];
   tips: string[];
   grandTotal: number;
+  breakdown?: CostBreakdown | null;
+  hasTravel: boolean;
 }
 
 export const useProcurement = () => {
@@ -29,14 +48,15 @@ export const useProcurement = () => {
   const generatePlan = useCallback(async (
     eventDescription: string,
     attendeeCount: number,
-    budget?: number
+    budget?: number,
+    travelDetails?: TravelDetails
   ) => {
     setIsLoading(true);
     setError(null);
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('plan-procurement', {
-        body: { eventDescription, attendeeCount, budget }
+        body: { eventDescription, attendeeCount, budget, travelDetails }
       });
 
       if (fnError) {
