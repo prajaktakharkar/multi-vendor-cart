@@ -170,6 +170,7 @@ export const TravelChat = ({ selectedCity, cityName, onBack }: TravelChatProps) 
         body: { 
           message: content,
           cityId: selectedCity,
+          cityName: displayCityName,
           conversationHistory: messages.map(m => ({ role: m.role, content: m.content }))
         }
       });

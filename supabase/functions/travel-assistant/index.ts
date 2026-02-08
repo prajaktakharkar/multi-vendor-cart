@@ -49,52 +49,11 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number }
   return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - userLimit.count };
 }
 
-// Static demo data embedded in the function
-const travelData = {
-  cities: {
-    'las-vegas': { name: 'Las Vegas', airports: ['LAS - Harry Reid International'] },
-    'atlantic-city': { name: 'Atlantic City', airports: ['ACY - Atlantic City International', 'PHL - Philadelphia International'] },
-    'silicon-valley': { name: 'Silicon Valley', airports: ['SFO - San Francisco International', 'SJC - San Jose International'] },
-  },
-  venues: {
-    'las-vegas': [
-      { name: 'Las Vegas Convention Center', capacity: 10000, pricePerDay: 25000, amenities: ['WiFi', 'AV Equipment', 'Catering'] },
-      { name: 'The Venetian Expo', capacity: 5000, pricePerDay: 18000, amenities: ['WiFi', 'AV Equipment', 'VIP Lounges'] },
-      { name: 'MGM Grand Conference Center', capacity: 3000, pricePerDay: 15000, amenities: ['WiFi', 'AV Equipment', 'Hotel Integration'] },
-    ],
-    'atlantic-city': [
-      { name: 'Atlantic City Convention Center', capacity: 8000, pricePerDay: 20000, amenities: ['WiFi', 'AV Equipment', 'Ocean Views'] },
-      { name: 'Borgata Event Center', capacity: 2500, pricePerDay: 12000, amenities: ['WiFi', 'Premium AV', 'Fine Dining'] },
-      { name: 'Hard Rock Hotel Conference Hall', capacity: 1500, pricePerDay: 10000, amenities: ['WiFi', 'Beach Access'] },
-    ],
-    'silicon-valley': [
-      { name: 'San Jose McEnery Convention Center', capacity: 6000, pricePerDay: 22000, amenities: ['High-Speed WiFi', 'Tech Support', 'Streaming'] },
-      { name: 'Computer History Museum', capacity: 800, pricePerDay: 8000, amenities: ['Unique Venue', 'Tech Exhibits'] },
-      { name: 'Palo Alto Conference Center', capacity: 1200, pricePerDay: 10000, amenities: ['Fiber WiFi', 'Green Certified'] },
-    ],
-  },
-  hotels: {
-    'las-vegas': [
-      { name: 'The Bellagio', pricePerNight: 299, stars: 5 },
-      { name: 'Caesars Palace', pricePerNight: 249, stars: 5 },
-      { name: 'The LINQ Hotel', pricePerNight: 129, stars: 4 },
-    ],
-    'atlantic-city': [
-      { name: 'Borgata Hotel Casino & Spa', pricePerNight: 219, stars: 5 },
-      { name: 'Hard Rock Hotel Atlantic City', pricePerNight: 179, stars: 4 },
-      { name: 'Ocean Casino Resort', pricePerNight: 159, stars: 4 },
-    ],
-    'silicon-valley': [
-      { name: 'Rosewood Sand Hill', pricePerNight: 599, stars: 5 },
-      { name: 'The Westin Palo Alto', pricePerNight: 289, stars: 4 },
-      { name: 'Aloft Santa Clara', pricePerNight: 169, stars: 3 },
-    ],
-  },
-  transport: [
-    { provider: 'Uber', types: ['UberX ($25-35)', 'UberXL ($40-55)', 'Uber Black ($75-100)'] },
-    { provider: 'Lyft', types: ['Lyft ($23-33)', 'Lyft XL ($38-52)', 'Lyft Lux ($70-95)'] },
-  ],
-};
+// Transport options (generic, applicable to any city)
+const transportOptions = [
+  { provider: 'Uber', types: ['UberX ($25-35)', 'UberXL ($40-55)', 'Uber Black ($75-100)'] },
+  { provider: 'Lyft', types: ['Lyft ($23-33)', 'Lyft XL ($38-52)', 'Lyft Lux ($70-95)'] },
+];
 
 // Tool definitions for the AI
 const tools = [
@@ -150,9 +109,9 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { message, cityId, conversationHistory, saveBookings, bookingsToSave, targetUserId } = await req.json();
+    const { message, cityId, cityName, conversationHistory, saveBookings, bookingsToSave, targetUserId } = await req.json();
     
-    console.log('Travel assistant request:', { message, cityId, historyLength: conversationHistory?.length, saveBookings, targetUserId });
+    console.log('Travel assistant request:', { message, cityId, cityName, historyLength: conversationHistory?.length, saveBookings, targetUserId });
 
     // Handle saving bookings - requires authentication
     if (saveBookings && bookingsToSave) {
@@ -251,49 +210,36 @@ serve(async (req: Request) => {
       );
     }
 
-    // Build context based on city
-    const cityData = cityId ? travelData.cities[cityId as keyof typeof travelData.cities] : null;
-    const venues = cityId ? travelData.venues[cityId as keyof typeof travelData.venues] : null;
-    const hotels = cityId ? travelData.hotels[cityId as keyof typeof travelData.hotels] : null;
-
-    // Build system prompt with available data
+    // Build system prompt - works for any destination
+    const destinationContext = cityName || cityId;
+    
     const systemPrompt = `You are a helpful travel planning assistant specializing in group travel for business conferences, sports teams (FIFA Cup, tournaments), and corporate events.
 
-You help plan travel to three cities:
-1. Las Vegas - Entertainment capital, major convention center
-2. Atlantic City - Beachfront venues, casino resorts
-3. Silicon Valley - Tech hub, innovative venues
+You can help plan travel to ANY city or destination worldwide. You have access to:
+- Flight bookings via Amadeus/Sabre GDS integration (real-time availability)
+- Hotel reservations with negotiated corporate rates
+- Conference venue partnerships globally
+- Ground transport coordination (Uber/Lyft business accounts)
 
-${cityData ? `
-CURRENT CITY: ${cityData.name}
-Airports: ${cityData.airports.join(', ')}
+${destinationContext ? `
+CURRENT DESTINATION: ${destinationContext}
+The user is planning travel to ${destinationContext}. Help them find the best options for flights, hotels, venues, and ground transport in this location.
+` : 'No destination selected yet. Help the user choose where they want to travel.'}
 
-AVAILABLE VENUES:
-${venues?.map(v => `- ${v.name}: Capacity ${v.capacity}, $${v.pricePerDay.toLocaleString()}/day, Amenities: ${v.amenities.join(', ')}`).join('\n')}
-
-AVAILABLE HOTELS:
-${hotels?.map(h => `- ${h.name}: $${h.pricePerNight}/night, ${h.stars}★`).join('\n')}
-` : 'No city selected yet. Help the user choose a destination.'}
-
-GROUND TRANSPORT OPTIONS:
-${travelData.transport.map(t => `${t.provider}: ${t.types.join(', ')}`).join('\n')}
-
-DATA SOURCES (mention these when relevant):
-- Flights: Amadeus/Sabre GDS integration (real-time availability)
-- Hotels: Partner inventory with negotiated rates
-- Venues: Direct venue partnerships
-- Transport: Uber/Lyft business accounts
+GROUND TRANSPORT OPTIONS (available in most major cities):
+${transportOptions.map(t => `${t.provider}: ${t.types.join(', ')}`).join('\n')}
 
 GUIDELINES:
 - Be conversational and helpful
-- Ask clarifying questions about: group size, dates, budget, event type
-- Provide specific recommendations with prices when possible
+- Ask clarifying questions about: group size, dates, budget, event type, and destination if not specified
+- Provide specific recommendations with estimated prices when possible
 - For flights, acknowledge you'd search Amadeus/Sabre for real-time options
+- For hotels and venues, provide general recommendations based on the destination
 - Format responses clearly with bullet points and sections
 - Keep responses concise but informative
 
 IMPORTANT - CREATING TRAVEL PLANS:
-When the user has provided enough information (dates, group size, preferences), you MUST use the create_travel_plan tool to generate a structured plan. This allows the user to save the bookings directly.
+When the user has provided enough information (dates, group size, destination, preferences), you MUST use the create_travel_plan tool to generate a structured plan. This allows the user to save the bookings directly.
 
 When creating a plan:
 - Include flight bookings with airline, departure/arrival cities and times
