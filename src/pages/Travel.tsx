@@ -128,7 +128,7 @@ const Travel = () => {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-          <p>© 2024 Group Travel Planner. Powered by AI.</p>
+          <p>© 2026 Touchdown Group Travel Planner. Powered by AI.</p>
         </div>
       </footer>
     </div>;
