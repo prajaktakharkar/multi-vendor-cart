@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, Users, Calendar, LogOut, 
-  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings 
+  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings, Sparkles 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateBookingDialog } from './CreateBookingDialog';
@@ -17,6 +17,7 @@ import { ChangeRequestsPanel } from './ChangeRequestsPanel';
 import { TravelRequestsPanel } from './TravelRequestsPanel';
 import { TransportCredentialsPanel } from './TransportCredentialsPanel';
 import { FlightCredentialsPanel } from './FlightCredentialsPanel';
+import { AIFlightBooking } from './AIFlightBooking';
 
 interface Booking {
   id: string;
@@ -199,8 +200,12 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList>
+        <Tabs defaultValue="ai-booking" className="space-y-6">
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="ai-booking" className="flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4" />
+              AI Booking
+            </TabsTrigger>
             <TabsTrigger value="bookings">All Bookings</TabsTrigger>
             <TabsTrigger value="travel-requests" className="flex items-center gap-1.5">
               <Send className="w-4 h-4" />
@@ -220,6 +225,10 @@ export const AdminDashboard = () => {
               Settings
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="ai-booking">
+            <AIFlightBooking />
+          </TabsContent>
 
           <TabsContent value="bookings">
             <Card>
