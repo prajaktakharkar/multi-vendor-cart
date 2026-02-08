@@ -39,13 +39,7 @@ const Travel = () => {
       <HeroSection />
 
       {/* Featured Cities */}
-      <section className="py-20 px-6">
-        <div className="container mx-auto">
-          
-
-          
-        </div>
-      </section>
+      
 
       {/* Services */}
       <section className="py-20 px-6 bg-secondary/30">
