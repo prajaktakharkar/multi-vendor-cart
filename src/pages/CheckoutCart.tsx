@@ -24,7 +24,11 @@ import {
   Sparkles,
   Package,
   AlertCircle,
+  Lock,
+  Shield,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { retreatApi } from "@/services/retreatApi";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +56,21 @@ interface CartState {
 
 type CheckoutStep = "cart" | "contact" | "payment" | "processing" | "success";
 
+interface SavedCard {
+  id: string;
+  last4: string;
+  brand: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+}
+
+// Mock saved cards
+const MOCK_SAVED_CARDS: SavedCard[] = [
+  { id: "card_1", last4: "4242", brand: "Visa", expMonth: 12, expYear: 2027, isDefault: true },
+  { id: "card_2", last4: "5555", brand: "Mastercard", expMonth: 6, expYear: 2026, isDefault: false },
+];
+
 export default function CheckoutCart() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -69,6 +88,15 @@ export default function CheckoutCart() {
   // Contact form
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+
+  // Payment state
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new">("saved");
+  const [selectedCardId, setSelectedCardId] = useState(MOCK_SAVED_CARDS[0]?.id || "");
+  const [newCardNumber, setNewCardNumber] = useState("");
+  const [newCardExpiry, setNewCardExpiry] = useState("");
+  const [newCardCvc, setNewCardCvc] = useState("");
+  const [newCardName, setNewCardName] = useState("");
+  const [saveNewCard, setSaveNewCard] = useState(false);
 
   // Fetch cart on mount
   useEffect(() => {
@@ -183,6 +211,45 @@ export default function CheckoutCart() {
     }
   };
 
+  const validatePayment = () => {
+    if (selectedPaymentMethod === "saved") {
+      return !!selectedCardId;
+    }
+    // Basic validation for new card
+    return (
+      newCardNumber.replace(/\s/g, "").length >= 15 &&
+      newCardExpiry.length >= 4 &&
+      newCardCvc.length >= 3 &&
+      newCardName.trim().length > 0
+    );
+  };
+
+  const formatCardNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  };
+
+  const formatExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    if (digits.length >= 2) {
+      return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+    return digits;
+  };
+
+  const getCardBrandIcon = (brand: string) => {
+    switch (brand.toLowerCase()) {
+      case "visa":
+        return "💳";
+      case "mastercard":
+        return "💳";
+      case "amex":
+        return "💳";
+      default:
+        return "💳";
+    }
+  };
+
   const handleCheckout = async () => {
     if (!user) {
       toast.error("Please sign in to complete checkout");
@@ -192,6 +259,12 @@ export default function CheckoutCart() {
 
     if (!contactName.trim() || !contactEmail.trim()) {
       toast.error("Please fill in contact information");
+      setStep("contact");
+      return;
+    }
+
+    if (!validatePayment()) {
+      toast.error("Please enter valid payment details");
       return;
     }
 
@@ -310,20 +383,26 @@ export default function CheckoutCart() {
             )}
             {/* Step indicators */}
             <div className="flex gap-1">
-              {["cart", "contact", "success"].map((s, i) => (
-                <div
-                  key={s}
-                  className={`h-2 rounded-full transition-all ${
-                    (s === step || (s === "contact" && step === "processing"))
-                      ? "w-6 bg-primary"
-                      : step === "success" || 
-                        (step === "contact" && s === "cart") ||
-                        (step === "processing" && s === "cart")
-                      ? "w-2 bg-primary/50"
-                      : "w-2 bg-muted"
-                  }`}
-                />
-              ))}
+              {["cart", "contact", "payment", "success"].map((s) => {
+                const stepOrder = ["cart", "contact", "payment", "processing", "success"];
+                const currentIndex = stepOrder.indexOf(step);
+                const thisIndex = stepOrder.indexOf(s === "success" ? "success" : s);
+                const isActive = s === step || (s === "payment" && step === "processing");
+                const isPast = thisIndex < currentIndex;
+                
+                return (
+                  <div
+                    key={s}
+                    className={`h-2 rounded-full transition-all ${
+                      isActive
+                        ? "w-6 bg-primary"
+                        : isPast || step === "success"
+                        ? "w-2 bg-primary/50"
+                        : "w-2 bg-muted"
+                    }`}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -599,11 +678,206 @@ export default function CheckoutCart() {
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={handleCheckout}
+                  onClick={() => setStep("payment")}
                   disabled={!contactName.trim() || !contactEmail.trim()}
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Complete Booking
+                  Continue to Payment
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Step */}
+          {step === "payment" && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  Payment Method
+                </h1>
+                <p className="text-muted-foreground">
+                  Choose how you'd like to pay
+                </p>
+              </div>
+
+              {/* Saved Cards */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Saved Payment Methods
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <RadioGroup
+                    value={selectedPaymentMethod === "saved" ? selectedCardId : ""}
+                    onValueChange={(value) => {
+                      setSelectedPaymentMethod("saved");
+                      setSelectedCardId(value);
+                    }}
+                  >
+                    {MOCK_SAVED_CARDS.map((card) => (
+                      <div
+                        key={card.id}
+                        className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+                          selectedPaymentMethod === "saved" && selectedCardId === card.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={() => {
+                          setSelectedPaymentMethod("saved");
+                          setSelectedCardId(card.id);
+                        }}
+                      >
+                        <RadioGroupItem value={card.id} id={card.id} />
+                        <div className="flex-1 flex items-center gap-3">
+                          <span className="text-2xl">{getCardBrandIcon(card.brand)}</span>
+                          <div>
+                            <p className="font-medium">
+                              {card.brand} •••• {card.last4}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Expires {card.expMonth.toString().padStart(2, "0")}/{card.expYear}
+                            </p>
+                          </div>
+                        </div>
+                        {card.isDefault && (
+                          <Badge variant="secondary" className="text-xs">
+                            Default
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+
+              {/* New Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div
+                    className={`flex items-center gap-3 cursor-pointer`}
+                    onClick={() => setSelectedPaymentMethod("new")}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPaymentMethod === "new"
+                          ? "border-primary"
+                          : "border-muted-foreground"
+                      }`}
+                    >
+                      {selectedPaymentMethod === "new" && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <CardTitle className="text-lg">Add New Card</CardTitle>
+                  </div>
+                </CardHeader>
+                {selectedPaymentMethod === "new" && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cardName">Cardholder Name</Label>
+                      <Input
+                        id="cardName"
+                        placeholder="John Doe"
+                        value={newCardName}
+                        onChange={(e) => setNewCardName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cardNumber">Card Number</Label>
+                      <div className="relative">
+                        <Input
+                          id="cardNumber"
+                          placeholder="4242 4242 4242 4242"
+                          value={newCardNumber}
+                          onChange={(e) => setNewCardNumber(formatCardNumber(e.target.value))}
+                          maxLength={19}
+                        />
+                        <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="expiry">Expiry Date</Label>
+                        <Input
+                          id="expiry"
+                          placeholder="MM/YY"
+                          value={newCardExpiry}
+                          onChange={(e) => setNewCardExpiry(formatExpiry(e.target.value))}
+                          maxLength={5}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cvc">CVC</Label>
+                        <Input
+                          id="cvc"
+                          placeholder="123"
+                          value={newCardCvc}
+                          onChange={(e) => setNewCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                          maxLength={4}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Checkbox
+                        id="saveCard"
+                        checked={saveNewCard}
+                        onCheckedChange={(checked) => setSaveNewCard(checked === true)}
+                      />
+                      <Label htmlFor="saveCard" className="text-sm font-normal cursor-pointer">
+                        Save this card for future purchases
+                      </Label>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Security Notice */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                <Shield className="w-4 h-4" />
+                <span>Your payment information is encrypted and secure</span>
+              </div>
+
+              {/* Order Summary Mini */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">
+                        {cartItems.length} item{cartItems.length !== 1 ? "s" : ""}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedPaymentMethod === "saved" 
+                          ? `Paying with •••• ${MOCK_SAVED_CARDS.find(c => c.id === selectedCardId)?.last4 || ""}`
+                          : "Paying with new card"
+                        }
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">
+                        ${cart?.total.toLocaleString() || 0}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex gap-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setStep("contact")}
+                >
+                  Back
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleCheckout}
+                  disabled={!validatePayment()}
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  Pay ${cart?.total.toLocaleString() || 0}
                 </Button>
               </div>
             </div>
