@@ -37,8 +37,10 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Edit3,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { ChangeRequestFormDialog } from './ChangeRequestFormDialog';
 
 interface BookingItem {
   id: string;
@@ -109,6 +111,7 @@ export const MyBookingsPanel = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [changeRequestDialogOpen, setChangeRequestDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -346,20 +349,30 @@ export const MyBookingsPanel = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 {selectedBooking.status !== 'cancelled' && (
-                  <Button
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={() => setCancelDialogOpen(true)}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Cancel Booking
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setChangeRequestDialogOpen(true)}
+                    >
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Request Modification
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => setCancelDialogOpen(true)}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
                 )}
                 <Button 
-                  variant={selectedBooking.status === 'cancelled' ? 'default' : 'outline'} 
-                  className="flex-1" 
+                  variant={selectedBooking.status === 'cancelled' ? 'default' : 'secondary'} 
+                  className="w-full" 
                   onClick={() => setSelectedBooking(null)}
                 >
                   Close
@@ -401,6 +414,19 @@ export const MyBookingsPanel = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Request Form Dialog */}
+      {selectedBooking && (
+        <ChangeRequestFormDialog
+          open={changeRequestDialogOpen}
+          onOpenChange={setChangeRequestDialogOpen}
+          bookingId={selectedBooking.id}
+          confirmationNumber={selectedBooking.details?.confirmationNumber}
+          onSuccess={() => {
+            toast.success('Your modification request has been submitted for review');
+          }}
+        />
+      )}
     </>
   );
 };
