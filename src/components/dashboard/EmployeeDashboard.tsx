@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, LogOut, Calendar,
   Clock, MapPin, CheckCircle, ArrowRight,
-  CalendarDays, Timer, MessageSquare, Edit, Send, Package
+  CalendarDays, Timer, MessageSquare, Edit, Send, Package, CreditCard
 } from 'lucide-react';
 import { format, isAfter, isBefore, isToday, differenceInDays } from 'date-fns';
 import { ChangeRequestDialog } from './ChangeRequestDialog';
@@ -16,6 +16,7 @@ import { MyRequestsPanel } from './MyRequestsPanel';
 import { NewTravelRequestDialog } from './NewTravelRequestDialog';
 import { MyTravelRequests } from './MyTravelRequests';
 import { ManageBookingDialog } from './ManageBookingDialog';
+import { BookingCheckoutDialog } from './BookingCheckoutDialog';
 interface BookingDetails {
   // Flight details
   airline?: string;
@@ -66,6 +67,8 @@ export const EmployeeDashboard = () => {
   const [travelRequestsRefreshKey, setTravelRequestsRefreshKey] = useState(0);
   const [manageBookingDialogOpen, setManageBookingDialogOpen] = useState(false);
   const [selectedBookingForManage, setSelectedBookingForManage] = useState<Booking | null>(null);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [selectedBookingForCheckout, setSelectedBookingForCheckout] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -215,19 +218,34 @@ export const EmployeeDashboard = () => {
                   </Button>
                 )}
                 {booking.booking_type === 'travel_package' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedBookingForManage(booking);
-                      setManageBookingDialogOpen(true);
-                    }}
-                    className="h-8"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Manage
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBookingForCheckout(booking);
+                        setCheckoutDialogOpen(true);
+                      }}
+                      className="h-8"
+                    >
+                      <CreditCard className="w-4 h-4 mr-1" />
+                      Checkout
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBookingForManage(booking);
+                        setManageBookingDialogOpen(true);
+                      }}
+                      className="h-8"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Manage
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -577,6 +595,17 @@ export const EmployeeDashboard = () => {
         booking={selectedBookingForManage}
         open={manageBookingDialogOpen}
         onOpenChange={setManageBookingDialogOpen}
+        onBookingUpdated={() => {
+          fetchBookings();
+          setRequestsRefreshKey(k => k + 1);
+        }}
+      />
+
+      {/* Booking Checkout Dialog */}
+      <BookingCheckoutDialog
+        booking={selectedBookingForCheckout}
+        open={checkoutDialogOpen}
+        onOpenChange={setCheckoutDialogOpen}
         onBookingUpdated={() => {
           fetchBookings();
           setRequestsRefreshKey(k => k + 1);
