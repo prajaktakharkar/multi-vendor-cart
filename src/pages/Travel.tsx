@@ -41,18 +41,7 @@ const Travel = () => {
       {/* Featured Cities */}
       <section className="py-20 px-6">
         <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-accent/10 text-accent border-accent/20">
-              Featured Destinations
-            </Badge>
-            <h2 className="text-4xl font-bold text-foreground mb-4">
-              Choose Your Destination
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              We specialize in these three premier destinations for conferences,
-              sporting events, and corporate retreats.
-            </p>
-          </div>
+          
 
           
         </div>
