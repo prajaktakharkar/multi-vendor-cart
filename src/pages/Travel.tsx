@@ -2,11 +2,13 @@ import { useState } from "react";
 import { HeroSection } from "@/components/travel/HeroSection";
 import { CityCard } from "@/components/travel/CityCard";
 import { TravelChat } from "@/components/travel/TravelChat";
+import { TransportAgent } from "@/components/travel/TransportAgent";
 import { cities } from "@/data/travelData";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Plane, Building2, MapPin, Car, Users, Shield } from "lucide-react";
 
-type ViewState = 'landing' | 'chat';
+type ViewState = 'landing' | 'chat' | 'transport';
 
 const Travel = () => {
   const [view, setView] = useState<ViewState>('landing');
@@ -22,6 +24,11 @@ const Travel = () => {
     setView('chat');
   };
 
+  const handleTransportAgent = (cityId?: string) => {
+    setSelectedCity(cityId);
+    setView('transport');
+  };
+
   const handleBack = () => {
     setView('landing');
     setSelectedCity(undefined);
@@ -29,6 +36,10 @@ const Travel = () => {
 
   if (view === 'chat') {
     return <TravelChat selectedCity={selectedCity} onBack={handleBack} />;
+  }
+
+  if (view === 'transport') {
+    return <TransportAgent selectedCity={selectedCity} onBack={handleBack} />;
   }
 
   return (
@@ -100,17 +111,24 @@ const Travel = () => {
                 title: 'Ground Transport',
                 description: 'Uber & Lyft coordination for seamless transfers',
                 color: 'text-accent',
+                action: () => handleTransportAgent(),
               },
-            ].map(({ icon: Icon, title, description, color }) => (
+            ].map(({ icon: Icon, title, description, color, action }) => (
               <div 
                 key={title}
-                className="bg-card p-6 rounded-xl border border-border hover:border-primary/30 transition-colors"
+                className={`bg-card p-6 rounded-xl border border-border hover:border-primary/30 transition-colors ${action ? 'cursor-pointer' : ''}`}
+                onClick={action}
               >
                 <div className={`w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4`}>
                   <Icon className={`w-6 h-6 ${color}`} />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">{title}</h3>
                 <p className="text-sm text-muted-foreground">{description}</p>
+                {action && (
+                  <Button variant="link" className="p-0 h-auto mt-2 text-primary">
+                    Compare & Book →
+                  </Button>
+                )}
               </div>
             ))}
           </div>
