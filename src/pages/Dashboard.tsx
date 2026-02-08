@@ -2,12 +2,11 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
-import { EmployeeDashboard } from '@/components/dashboard/EmployeeDashboard';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -27,5 +26,5 @@ export default function Dashboard() {
     return null;
   }
 
-  return role === 'company_admin' ? <AdminDashboard /> : <EmployeeDashboard />;
+  return <AdminDashboard />;
 }
