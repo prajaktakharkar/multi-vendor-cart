@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { retreatApi, Weights } from "@/services/retreatApi";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { DiscoverySkeleton } from "@/components/travel/DiscoverySkeleton";
 import { CartSkeleton } from "@/components/travel/CartSkeleton";
 
@@ -155,10 +156,43 @@ export default function TravelSearch() {
         { name: user.email?.split('@')[0] || 'Guest', email: user.email || '' },
         { method: 'stripe', stripe_token: 'tok_visa' }
       );
-      setBookingId(checkoutRes.master_booking_id || checkoutRes.booking_id);
+      
+      const masterBookingId = checkoutRes.master_booking_id || checkoutRes.booking_id || crypto.randomUUID();
+      
+      // Save booking to database
+      const bookingDetails = {
+        booking_id: masterBookingId,
+        session_id: sessionId,
+        destination,
+        attendees,
+        budget,
+        package: selectedPackage,
+        cart: cartDetails,
+        checkout_response: checkoutRes
+      };
+      
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: user.id,
+          created_by: user.id,
+          booking_type: 'travel_package',
+          status: 'confirmed',
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString(),
+          details: JSON.parse(JSON.stringify(bookingDetails))
+        });
+      
+      if (bookingError) {
+        console.error('Failed to save booking:', bookingError);
+        toast.error('Booking completed but failed to save to your account');
+      }
+      
+      setBookingId(masterBookingId);
       setStep('success');
-      toast.success('Booking confirmed!');
+      toast.success('Booking confirmed and saved!');
     } catch (error) {
+      console.error('Checkout failed:', error);
       toast.error('Checkout failed. Please try again.');
     } finally {
       setIsLoading(false);
