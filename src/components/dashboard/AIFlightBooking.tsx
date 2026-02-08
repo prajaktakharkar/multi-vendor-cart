@@ -142,8 +142,8 @@ export const AIFlightBooking = () => {
   };
 
   return (
-    <Card className="flex flex-col h-[750px]">
-      <CardHeader className="flex-shrink-0">
+    <Card className="flex flex-col min-h-[600px] max-h-[calc(100vh-200px)]">
+      <CardHeader className="flex-shrink-0 pb-3">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -159,9 +159,9 @@ export const AIFlightBooking = () => {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col min-h-0 gap-4">
+      <CardContent className="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
         {/* Chat Messages */}
-        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 min-h-[300px] pr-4" ref={scrollRef}>
           <div className="space-y-4 pb-4">
             {messages.length === 0 ? (
               <div className="space-y-4">
