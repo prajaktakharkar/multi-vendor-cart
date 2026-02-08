@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,6 +50,7 @@ const quickActions = [
 ];
 
 export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
+  const navigate = useNavigate();
   const city = cities.find(c => c.id === selectedCity);
   const { user, session, role } = useAuth();
   const isAdmin = role === 'company_admin';
@@ -393,8 +395,14 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
               )}
               
               <Button 
-                onClick={savePlanToBookings} 
-                disabled={isSavingPlan || !user}
+                onClick={() => {
+                  if (!user) {
+                    navigate('/auth');
+                  } else {
+                    savePlanToBookings();
+                  }
+                }} 
+                disabled={isSavingPlan}
                 className="w-full"
               >
                 {isSavingPlan ? (
