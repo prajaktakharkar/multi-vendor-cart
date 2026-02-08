@@ -2,3 +2,6 @@ project_id = "fkjxgyxphbwsomockdwr"
 
 [functions.recommend-items]
 verify_jwt = false
+
+[functions.plan-procurement]
+verify_jwt = false
