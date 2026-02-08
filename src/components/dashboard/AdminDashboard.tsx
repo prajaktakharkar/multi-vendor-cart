@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, Users, Calendar, LogOut, 
-  Plus, ChevronRight, Clock, MapPin 
+  Plus, ChevronRight, Clock, Pencil 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateBookingDialog } from './CreateBookingDialog';
+import { EditBookingDialog } from './EditBookingDialog';
 
 interface Booking {
   id: string;
@@ -36,6 +37,8 @@ export const AdminDashboard = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -84,6 +87,16 @@ export const AdminDashboard = () => {
       case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
       default: return '';
     }
+  };
+
+  const getEmployeeName = (userId: string) => {
+    const employee = employees.find(e => e.user_id === userId);
+    return employee?.full_name || employee?.email || 'Unknown';
+  };
+
+  const handleEditBooking = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setEditDialogOpen(true);
   };
 
   const stats = {
@@ -219,7 +232,8 @@ export const AdminDashboard = () => {
                     {bookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => handleEditBooking(booking)}
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
@@ -230,8 +244,10 @@ export const AdminDashboard = () => {
                               {booking.booking_type} Booking
                             </p>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{getEmployeeName(booking.user_id)}</span>
                               {booking.start_date && (
                                 <>
+                                  <span>•</span>
                                   <Clock className="w-3 h-3" />
                                   <span>{format(new Date(booking.start_date), 'MMM d, yyyy')}</span>
                                 </>
@@ -243,7 +259,7 @@ export const AdminDashboard = () => {
                           <Badge className={getStatusColor(booking.status)}>
                             {booking.status}
                           </Badge>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
                         </div>
                       </div>
                     ))}
@@ -313,6 +329,15 @@ export const AdminDashboard = () => {
           onOpenChange={setCreateDialogOpen}
           employees={employees}
           onBookingCreated={fetchData}
+        />
+
+        {/* Edit Booking Dialog */}
+        <EditBookingDialog
+          booking={selectedBooking}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          employees={employees}
+          onBookingUpdated={fetchData}
         />
       </main>
     </div>
