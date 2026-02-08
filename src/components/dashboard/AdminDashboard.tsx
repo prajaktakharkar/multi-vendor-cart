@@ -10,6 +10,7 @@ import {
   Plus, ChevronRight, Clock, MapPin 
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { CreateBookingDialog } from './CreateBookingDialog';
 
 interface Booking {
   id: string;
@@ -24,6 +25,7 @@ interface Booking {
 
 interface Employee {
   id: string;
+  user_id: string;
   email: string;
   full_name: string | null;
 }
@@ -33,6 +35,7 @@ export const AdminDashboard = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -53,10 +56,10 @@ export const AdminDashboard = () => {
       // Fetch all employee profiles
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, email, full_name');
+        .select('id, user_id, email, full_name');
 
       if (profilesData) {
-        setEmployees(profilesData);
+        setEmployees(profilesData as Employee[]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -191,7 +194,7 @@ export const AdminDashboard = () => {
                   <CardTitle>Travel Bookings</CardTitle>
                   <CardDescription>Manage all employee travel arrangements</CardDescription>
                 </div>
-                <Button>
+                <Button onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   New Booking
                 </Button>
@@ -206,7 +209,7 @@ export const AdminDashboard = () => {
                     <p className="text-sm text-muted-foreground mb-4">
                       Create your first booking to get started
                     </p>
-                    <Button>
+                    <Button onClick={() => setCreateDialogOpen(true)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Booking
                     </Button>
@@ -303,6 +306,14 @@ export const AdminDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Create Booking Dialog */}
+        <CreateBookingDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          employees={employees}
+          onBookingCreated={fetchData}
+        />
       </main>
     </div>
   );
