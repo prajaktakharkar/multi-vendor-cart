@@ -7,27 +7,43 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, LogOut, Calendar,
-  Clock, MapPin, ChevronRight, CheckCircle
+  Clock, MapPin, CheckCircle, ArrowRight,
+  CalendarDays, Timer
 } from 'lucide-react';
-import { format, isAfter, isBefore, isToday, addDays } from 'date-fns';
+import { format, isAfter, isBefore, isToday, differenceInDays } from 'date-fns';
+
+interface BookingDetails {
+  // Flight details
+  airline?: string;
+  flightNumber?: string;
+  departure?: string;
+  arrival?: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  origin?: string;
+  destination?: string;
+  // Hotel details
+  hotelName?: string;
+  location?: string;
+  roomType?: string;
+  checkIn?: string;
+  checkOut?: string;
+  address?: string;
+  // Car details
+  provider?: string;
+  vehicleType?: string;
+  carType?: string;
+  pickupLocation?: string;
+  dropoffLocation?: string;
+  pickupTime?: string;
+  dropoffTime?: string;
+}
 
 interface Booking {
   id: string;
   booking_type: 'flight' | 'hotel' | 'car';
   status: 'pending' | 'confirmed' | 'cancelled';
-  details: {
-    origin?: string;
-    destination?: string;
-    airline?: string;
-    flightNumber?: string;
-    hotelName?: string;
-    roomType?: string;
-    address?: string;
-    carType?: string;
-    pickupLocation?: string;
-    dropoffLocation?: string;
-    provider?: string;
-  };
+  details: BookingDetails;
   start_date: string | null;
   end_date: string | null;
   created_at: string;
@@ -101,74 +117,176 @@ export const EmployeeDashboard = () => {
     b.start_date && isBefore(new Date(b.start_date), new Date()) && !isToday(new Date(b.start_date))
   );
 
-  const BookingCard = ({ booking }: { booking: Booking }) => (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
-      <CardContent className="p-0">
-        <div className="flex">
-          <div className={`w-2 ${booking.booking_type === 'flight' ? 'bg-blue-500' : booking.booking_type === 'hotel' ? 'bg-purple-500' : 'bg-green-500'}`} />
-          <div className="flex-1 p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getBookingColor(booking.booking_type)}`}>
-                  {getBookingIcon(booking.booking_type)}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground capitalize">
-                    {booking.booking_type === 'flight' && booking.details.airline}
-                    {booking.booking_type === 'hotel' && booking.details.hotelName}
-                    {booking.booking_type === 'car' && booking.details.provider}
-                    {!booking.details.airline && !booking.details.hotelName && !booking.details.provider && 
-                      `${booking.booking_type} Booking`}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {booking.booking_type === 'flight' && booking.details.flightNumber}
-                    {booking.booking_type === 'hotel' && booking.details.roomType}
-                    {booking.booking_type === 'car' && booking.details.carType}
-                  </p>
-                </div>
-              </div>
-              <Badge className={getStatusColor(booking.status)}>
-                {booking.status === 'confirmed' && <CheckCircle className="w-3 h-3 mr-1" />}
-                {booking.status}
-              </Badge>
-            </div>
+  const BookingCard = ({ booking }: { booking: Booking }) => {
+    const details = booking.details;
+    
+    const formatDateTime = (dateStr?: string) => {
+      if (!dateStr) return null;
+      try {
+        const date = new Date(dateStr);
+        return format(date, 'MMM d, yyyy h:mm a');
+      } catch {
+        return dateStr;
+      }
+    };
 
-            <div className="space-y-2 text-sm">
-              {booking.booking_type === 'flight' && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  <span>{booking.details.origin} → {booking.details.destination}</span>
-                </div>
-              )}
-              {booking.booking_type === 'hotel' && booking.details.address && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  <span>{booking.details.address}</span>
-                </div>
-              )}
-              {booking.booking_type === 'car' && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  <span>{booking.details.pickupLocation} → {booking.details.dropoffLocation}</span>
-                </div>
-              )}
-              
-              <div className="flex items-center gap-4">
-                {booking.start_date && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span>
-                      {format(new Date(booking.start_date), 'MMM d, yyyy h:mm a')}
-                    </span>
+    const formatDate = (dateStr?: string) => {
+      if (!dateStr) return null;
+      try {
+        const date = new Date(dateStr);
+        return format(date, 'MMM d, yyyy');
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const getDuration = () => {
+      if (booking.start_date && booking.end_date) {
+        const days = differenceInDays(new Date(booking.end_date), new Date(booking.start_date));
+        if (days === 0) return 'Same day';
+        if (days === 1) return '1 night';
+        return `${days} nights`;
+      }
+      return null;
+    };
+
+    return (
+      <Card className="overflow-hidden hover:shadow-md transition-shadow">
+        <CardContent className="p-0">
+          <div className="flex">
+            <div className={`w-2 ${booking.booking_type === 'flight' ? 'bg-blue-500' : booking.booking_type === 'hotel' ? 'bg-purple-500' : 'bg-green-500'}`} />
+            <div className="flex-1 p-4">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getBookingColor(booking.booking_type)}`}>
+                    {getBookingIcon(booking.booking_type)}
                   </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground text-lg">
+                      {booking.booking_type === 'flight' && (details.airline || 'Flight')}
+                      {booking.booking_type === 'hotel' && (details.hotelName || 'Hotel')}
+                      {booking.booking_type === 'car' && (details.provider || 'Car Rental')}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {booking.booking_type === 'flight' && details.flightNumber && `Flight ${details.flightNumber}`}
+                      {booking.booking_type === 'hotel' && details.roomType && `${details.roomType.charAt(0).toUpperCase() + details.roomType.slice(1)} Room`}
+                      {booking.booking_type === 'car' && details.vehicleType && `${details.vehicleType.charAt(0).toUpperCase() + details.vehicleType.slice(1)} Vehicle`}
+                    </p>
+                  </div>
+                </div>
+                <Badge className={getStatusColor(booking.status)}>
+                  {booking.status === 'confirmed' && <CheckCircle className="w-3 h-3 mr-1" />}
+                  {booking.status}
+                </Badge>
+              </div>
+
+              {/* Details Grid */}
+              <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                {/* Flight Details */}
+                {booking.booking_type === 'flight' && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{details.departure || details.origin || 'Origin'}</span>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium">{details.arrival || details.destination || 'Destination'}</span>
+                      </div>
+                    </div>
+                    {(details.departureTime || booking.start_date) && (
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Departure: </span>
+                          <span className="font-medium">{formatDateTime(details.departureTime) || formatDateTime(booking.start_date || undefined)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {(details.arrivalTime || booking.end_date) && (
+                      <div className="flex items-center gap-3">
+                        <Timer className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Arrival: </span>
+                          <span className="font-medium">{formatDateTime(details.arrivalTime) || formatDateTime(booking.end_date || undefined)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Hotel Details */}
+                {booking.booking_type === 'hotel' && (
+                  <>
+                    {(details.location || details.address) && (
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm">{details.location || details.address}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <CalendarDays className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="text-sm flex items-center gap-2 flex-wrap">
+                        <div>
+                          <span className="text-muted-foreground">Check-in: </span>
+                          <span className="font-medium">{formatDate(details.checkIn) || formatDate(booking.start_date || undefined) || 'TBD'}</span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <span className="text-muted-foreground">Check-out: </span>
+                          <span className="font-medium">{formatDate(details.checkOut) || formatDate(booking.end_date || undefined) || 'TBD'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {getDuration() && (
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium">{getDuration()}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Car Details */}
+                {booking.booking_type === 'car' && (
+                  <>
+                    {(details.pickupLocation || details.dropoffLocation) && (
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{details.pickupLocation || 'Pickup'}</span>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">{details.dropoffLocation || 'Drop-off'}</span>
+                        </div>
+                      </div>
+                    )}
+                    {(details.pickupTime || booking.start_date) && (
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Pickup: </span>
+                          <span className="font-medium">{formatDateTime(details.pickupTime) || formatDateTime(booking.start_date || undefined)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {(details.dropoffTime || booking.end_date) && (
+                      <div className="flex items-center gap-3">
+                        <Timer className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Drop-off: </span>
+                          <span className="font-medium">{formatDateTime(details.dropoffTime) || formatDateTime(booking.end_date || undefined)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
