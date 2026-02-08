@@ -15,9 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, UserCheck, Briefcase, Plane, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Users, UserCheck, Briefcase, Plane, Plus, Pencil, Trash2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RosterMemberDialog } from './RosterMemberDialog';
+import { RosterImportDialog } from './RosterImportDialog';
 
 interface RosterMember {
   id: string;
@@ -48,6 +49,8 @@ export const TeamRosterPanel = () => {
   const [editingMember, setEditingMember] = useState<RosterMember | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<RosterMember | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const fetchRoster = async () => {
     const { data, error } = await supabase
@@ -216,6 +219,62 @@ export const TeamRosterPanel = () => {
     }
   };
 
+  const handleImportMembers = async (members: Array<{
+    team_name: string;
+    role: string;
+    first_name: string;
+    last_name: string;
+    position: string | null;
+    jersey_number: number | null;
+    status: string;
+    travel_document: string | null;
+    seat_preference: string | null;
+    special_requirements: string | null;
+    contact_email: string | null;
+    notes: string | null;
+  }>) => {
+    setImporting(true);
+    try {
+      const payload = members.map(m => ({
+        team_name: m.team_name,
+        role: m.role,
+        first_name: m.first_name,
+        last_name: m.last_name,
+        position: m.position,
+        jersey_number: m.jersey_number,
+        status: m.status,
+        travel_document: m.travel_document,
+        seat_preference: m.seat_preference,
+        special_requirements: m.special_requirements,
+        contact_email: m.contact_email,
+        notes: m.notes,
+      }));
+
+      const { error } = await supabase
+        .from("team_roster")
+        .insert(payload);
+
+      if (error) throw error;
+
+      toast({
+        title: "Import successful",
+        description: `${members.length} members have been added to ${members[0]?.team_name}.`,
+      });
+
+      setImportDialogOpen(false);
+      await fetchRoster();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      toast({
+        title: "Error importing members",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Roster Stats */}
@@ -296,6 +355,10 @@ export const TeamRosterPanel = () => {
                   <SelectItem value="Admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
               <Button onClick={handleAddMember}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Member
@@ -410,6 +473,15 @@ export const TeamRosterPanel = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <RosterImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportMembers}
+        loading={importing}
+        defaultTeamName={selectedTeam !== 'all' ? selectedTeam : ''}
+      />
     </div>
   );
 };
