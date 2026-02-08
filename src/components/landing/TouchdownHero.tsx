@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Trophy, Plane, Hotel, Car, Ticket, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,7 +9,40 @@ interface TouchdownHeroProps {
   onStartPlanning: () => void;
 }
 
+interface TimeLeft {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
+const calculateTimeLeft = (): TimeLeft => {
+  const superBowlDate = new Date("2025-02-09T18:30:00-05:00"); // 6:30 PM ET kickoff
+  const now = new Date();
+  const difference = superBowlDate.getTime() - now.getTime();
+
+  if (difference <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+  }
+
+  return {
+    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((difference / 1000 / 60) % 60),
+    seconds: Math.floor((difference / 1000) % 60),
+  };
+};
+
 export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
   const { user } = useAuth();
 
   return (
@@ -59,6 +93,29 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
             <span className="block text-primary drop-shadow-lg">Game Day Experience</span>
           </h1>
 
+          {/* Countdown Timer */}
+          <div className="flex justify-center gap-3 sm:gap-6 mb-8">
+            {[
+              { value: timeLeft.days, label: "Days" },
+              { value: timeLeft.hours, label: "Hours" },
+              { value: timeLeft.minutes, label: "Mins" },
+              { value: timeLeft.seconds, label: "Secs" },
+            ].map(({ value, label }) => (
+              <div
+                key={label}
+                className="flex flex-col items-center bg-black/40 backdrop-blur-md rounded-xl px-4 py-3 sm:px-6 sm:py-4 border border-white/20 min-w-[70px] sm:min-w-[90px]"
+              >
+                <span className="text-3xl sm:text-5xl font-bold text-white tabular-nums">
+                  {value.toString().padStart(2, "0")}
+                </span>
+                <span className="text-xs sm:text-sm text-white/70 uppercase tracking-wider mt-1">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-lg text-white/80 mb-2">until Super Bowl LIX kickoff</p>
           <p className="text-xl text-white/90 max-w-2xl mx-auto mb-10 drop-shadow-lg">
             Book complete travel packages for the biggest game of the year—flights, 
             hotels, game tickets, and VIP ground transportation all in one place.
