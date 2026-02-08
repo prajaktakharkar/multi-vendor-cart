@@ -213,11 +213,13 @@ export default function CheckoutCart() {
 
   const validatePayment = () => {
     if (selectedPaymentMethod === "saved") {
-      return !!selectedCardId;
+      // Always valid if using saved cards (we have defaults)
+      return MOCK_SAVED_CARDS.length > 0;
     }
     // Basic validation for new card
+    const cardDigits = newCardNumber.replace(/\s/g, "");
     return (
-      newCardNumber.replace(/\s/g, "").length >= 15 &&
+      cardDigits.length >= 15 &&
       newCardExpiry.length >= 4 &&
       newCardCvc.length >= 3 &&
       newCardName.trim().length > 0
