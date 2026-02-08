@@ -4,11 +4,25 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { ChatMessage, type Message } from "./ChatMessage";
-import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car, Save, CheckCircle } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car, Save, CheckCircle, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cities } from "@/data/travelData";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Employee {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+}
 
 interface TravelPlan {
   plan_summary: string;
@@ -34,7 +48,8 @@ const quickActions = [
 
 export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
   const city = cities.find(c => c.id === selectedCity);
-  const { user, session } = useAuth();
+  const { user, session, role } = useAuth();
+  const isAdmin = role === 'company_admin';
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -50,8 +65,32 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
   const [currentPlan, setCurrentPlan] = useState<TravelPlan | null>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planSaved, setPlanSaved] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('self');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch employees for admin users
+  useEffect(() => {
+    if (isAdmin) {
+      fetchEmployees();
+    }
+  }, [isAdmin]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, user_id, email, full_name');
+      
+      if (error) throw error;
+      if (data) {
+        setEmployees(data as Employee[]);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -122,11 +161,17 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
 
     setIsSavingPlan(true);
 
+    // Determine target user
+    const targetUserId = selectedEmployee === 'self' ? user.id : selectedEmployee;
+    const targetEmployee = employees.find(e => e.user_id === targetUserId);
+    const targetName = targetUserId === user.id ? 'yourself' : (targetEmployee?.full_name || targetEmployee?.email || 'the employee');
+
     try {
       const { data, error } = await supabase.functions.invoke('travel-assistant', {
         body: { 
           saveBookings: true,
-          bookingsToSave: currentPlan.bookings
+          bookingsToSave: currentPlan.bookings,
+          targetUserId: targetUserId,
         }
       });
 
@@ -137,13 +182,18 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
         toast.success(data.message || 'Bookings saved successfully!');
         
         // Add confirmation message to chat
+        const assignedTo = targetUserId === user.id 
+          ? "your dashboard" 
+          : `${targetName}'s schedule`;
+        
         const confirmMessage: Message = {
           id: Date.now().toString(),
           role: 'assistant',
-          content: `✅ **Bookings Saved!**\n\nI've added ${currentPlan.bookings.length} booking(s) to your dashboard. You can view and manage them from the Dashboard page.\n\nIs there anything else you'd like to plan?`,
+          content: `✅ **Bookings Saved!**\n\nI've added ${currentPlan.bookings.length} booking(s) to ${assignedTo}. ${targetUserId === user.id ? 'You can view and manage them from the Dashboard page.' : 'The employee will see these in their schedule.'}\n\nIs there anything else you'd like to plan?`,
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, confirmMessage]);
+        setSelectedEmployee('self');
       } else {
         throw new Error(data.error || 'Failed to save bookings');
       }
@@ -212,24 +262,51 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
       {currentPlan && !planSaved && (
         <div className="px-4 pb-2">
           <Card className="p-4 bg-primary/5 border-primary/20">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-foreground">Travel Plan Ready</p>
-                <p className="text-sm text-muted-foreground">
-                  {currentPlan.bookings.length} booking(s) • {currentPlan.plan_summary}
-                </p>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-foreground">Travel Plan Ready</p>
+                  <p className="text-sm text-muted-foreground">
+                    {currentPlan.bookings.length} booking(s) • {currentPlan.plan_summary}
+                  </p>
+                </div>
               </div>
+              
+              {/* Admin employee selector */}
+              {isAdmin && employees.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Assign to..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="self">Myself</SelectItem>
+                      {employees.map((employee) => (
+                        <SelectItem key={employee.user_id} value={employee.user_id}>
+                          {employee.full_name || employee.email}
+                          {employee.user_id === user?.id && ' (Me)'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               <Button 
                 onClick={savePlanToBookings} 
                 disabled={isSavingPlan || !user}
-                className="shrink-0"
+                className="w-full"
               >
                 {isSavingPlan ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                {user ? 'Save Plan to Bookings' : 'Sign in to Save'}
+                {!user ? 'Sign in to Save' : 
+                  selectedEmployee === 'self' ? 'Save Plan to My Bookings' : 
+                  `Assign to ${employees.find(e => e.user_id === selectedEmployee)?.full_name || 'Employee'}`
+                }
               </Button>
             </div>
           </Card>

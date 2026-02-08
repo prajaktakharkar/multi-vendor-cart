@@ -107,9 +107,9 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { message, cityId, conversationHistory, saveBookings, bookingsToSave } = await req.json();
+    const { message, cityId, conversationHistory, saveBookings, bookingsToSave, targetUserId } = await req.json();
     
-    console.log('Travel assistant request:', { message, cityId, historyLength: conversationHistory?.length, saveBookings });
+    console.log('Travel assistant request:', { message, cityId, historyLength: conversationHistory?.length, saveBookings, targetUserId });
 
     // Handle saving bookings
     if (saveBookings && bookingsToSave) {
@@ -138,11 +138,30 @@ serve(async (req: Request) => {
       }
 
       const userId = claims.claims.sub;
-      console.log('Saving bookings for user:', userId);
+      
+      // Check if admin is assigning to someone else
+      let bookingUserId = userId;
+      if (targetUserId && targetUserId !== userId) {
+        // Verify the requester is an admin
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
+        
+        if (roleData?.role === 'company_admin') {
+          bookingUserId = targetUserId;
+          console.log('Admin assigning bookings to:', bookingUserId);
+        } else {
+          console.log('Non-admin tried to assign to another user');
+        }
+      }
+      
+      console.log('Saving bookings for user:', bookingUserId, 'created by:', userId);
 
       // Insert all bookings
       const bookingsWithUser = bookingsToSave.map((booking: any) => ({
-        user_id: userId,
+        user_id: bookingUserId,
         created_by: userId,
         booking_type: booking.booking_type,
         status: 'confirmed',
