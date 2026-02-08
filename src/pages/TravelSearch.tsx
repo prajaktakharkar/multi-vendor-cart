@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { retreatApi, Weights } from "@/services/retreatApi";
 import { toast } from "sonner";
+import { DiscoverySkeleton } from "@/components/travel/DiscoverySkeleton";
 
 type Step = 'input' | 'discovering' | 'packages' | 'cart' | 'success';
 
@@ -42,6 +43,7 @@ export default function TravelSearch() {
   const [step, setStep] = useState<Step>('input');
   const [sessionId, setSessionId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentAgent, setCurrentAgent] = useState(0);
   
   // Input form state
   const [destination, setDestination] = useState(searchParams.get('city') || "New Orleans");
@@ -68,14 +70,17 @@ export default function TravelSearch() {
     
     setIsLoading(true);
     setStep('discovering');
+    setCurrentAgent(1);
     
     try {
       // Agent 1: Analyze requirements
       const analyzeRes = await retreatApi.analyzeRequirements(structuredInput);
       setSessionId(analyzeRes.session_id);
+      setCurrentAgent(2);
       
       // Agent 2: Discover options
       await retreatApi.discoverOptions(analyzeRes.session_id);
+      setCurrentAgent(3);
       
       // Agent 3: Rank packages
       const rankRes = await retreatApi.rankPackages(analyzeRes.session_id, weights);
@@ -83,11 +88,13 @@ export default function TravelSearch() {
       setPackages(Array.isArray(packageData) ? packageData : []);
       
       setStep('packages');
+      setCurrentAgent(0);
       toast.success('Found travel packages for you!');
     } catch (error) {
       console.error('Search failed:', error);
       toast.error('Search failed. Please try again.');
       setStep('input');
+      setCurrentAgent(0);
     } finally {
       setIsLoading(false);
     }
@@ -220,7 +227,7 @@ export default function TravelSearch() {
         <div className="max-w-4xl mx-auto">
           
           {/* Step 1: Input Form */}
-          {(step === 'input' || step === 'discovering') && (
+          {step === 'input' && (
             <div className="space-y-8">
               <div className="text-center">
                 <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -335,34 +342,17 @@ export default function TravelSearch() {
                   disabled={isLoading || !destination}
                   className="w-full mt-8 h-14 text-lg gap-2"
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {step === 'discovering' ? 'AI Agents Searching...' : 'Processing...'}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      Find Travel Packages
-                    </>
-                  )}
+                  <Sparkles className="w-5 h-5" />
+                  Find Travel Packages
                 </Button>
 
-                {step === 'discovering' && (
-                  <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                      <span className="font-medium text-foreground">AI Agents Working</span>
-                    </div>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p>✓ Agent 1: Analyzing your requirements...</p>
-                      <p>✓ Agent 2: Searching vendors for best options...</p>
-                      <p>✓ Agent 3: Ranking packages by your preferences...</p>
-                    </div>
-                  </div>
-                )}
               </Card>
             </div>
+          )}
+
+          {/* Discovering Phase with Skeleton */}
+          {step === 'discovering' && (
+            <DiscoverySkeleton currentAgent={currentAgent} />
           )}
 
           {/* Step 2: Package Results */}
