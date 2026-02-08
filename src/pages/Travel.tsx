@@ -36,7 +36,7 @@ const Travel = () => {
     return <TransportAgent selectedCity={selectedCity} onBack={handleBack} />;
   }
   return <div className="min-h-screen bg-background">
-      <HeroSection onStartPlanning={handleStartPlanning} />
+      <HeroSection />
 
       {/* Featured Cities */}
       <section className="py-20 px-6">

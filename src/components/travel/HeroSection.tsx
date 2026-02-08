@@ -1,16 +1,15 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plane, Building2, Car, Calendar, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-interface HeroSectionProps {
-  onStartPlanning: () => void;
-}
-export const HeroSection = ({
-  onStartPlanning
-}: HeroSectionProps) => {
-  const {
-    user
-  } = useAuth();
+
+export const HeroSection = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleStartPlanning = () => {
+    navigate(user ? '/dashboard' : '/auth');
+  };
   return <>
       {/* Top nav bar */}
       <nav className="absolute top-0 left-0 right-0 z-20 px-6 py-4">
@@ -57,7 +56,7 @@ export const HeroSection = ({
           business conference, sports team, or corporate retreat—all in one place.
         </p>
         
-        <Button size="lg" onClick={onStartPlanning} className="text-lg px-8 py-6 rounded-full shadow-lg hover:shadow-xl transition-all">
+        <Button size="lg" onClick={handleStartPlanning} className="text-lg px-8 py-6 rounded-full shadow-lg hover:shadow-xl transition-all">
           <Calendar className="w-5 h-5 mr-2" />
           Start Planning Your Trip
         </Button>
