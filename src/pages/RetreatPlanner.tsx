@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, ArrowLeft, Sparkles, Plane, Building2, MapPin, Calculator, ShoppingCart, CheckCircle, Package, Plus, Minus, Trash2, CreditCard, Lock, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Plane, Building2, MapPin, Calculator, ShoppingCart, CheckCircle, Package, Plus, Minus, Trash2, CreditCard, Lock, ShieldCheck, Calendar, Users, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { LayoutDashboard, FileText, Download, Save, History, CreditCard as CardIcon } from "lucide-react";
 
-type Step = 'analyze' | 'discover' | 'rank' | 'cart' | 'checkout' | 'success';
+type Step = 'analyze' | 'discover' | 'rank' | 'cart' | 'checkout' | 'success' | 'dashboard';
 
 interface PaymentDetails {
     cardNumber: string;
@@ -36,15 +37,65 @@ export default function RetreatPlanner() {
         name: "Manan Shah"
     });
 
+    // Structured Input State
+    const [destination, setDestination] = useState("Paris");
+    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(new Date(Date.now() + 172800000).toISOString().split('T')[0]); // +2 days
+    const [attendees, setAttendees] = useState(15);
+    const [budget, setBudget] = useState(10000);
+
     const [weights, setWeights] = useState<Weights>({
         category_importance: { flights: 30, hotels: 40, meeting_rooms: 15, catering: 15 },
         hotels: { price_weight: 50, trust_weight: 40, location_weight: 25, amenities_weight: 15 }
     });
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [saveCard, setSaveCard] = useState(false);
+
+    // Persistence Logic
+    useEffect(() => {
+        const savedBookings = localStorage.getItem("retreat_bookings");
+        if (savedBookings) setBookings(JSON.parse(savedBookings));
+
+        const savedCardInfo = localStorage.getItem("retreat_card_info");
+        if (savedCardInfo) {
+            setPaymentDetails(JSON.parse(savedCardInfo));
+            setSaveCard(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem("retreat_bookings", JSON.stringify(bookings));
+    }, [bookings]);
+
+    useEffect(() => {
+        if (saveCard) {
+            localStorage.setItem("retreat_card_info", JSON.stringify(paymentDetails));
+        } else {
+            localStorage.removeItem("retreat_card_info");
+        }
+    }, [paymentDetails, saveCard]);
+
+    const downloadReceipt = (booking: any) => {
+        const content = `RETREAT BOOKING RECEIPT\n\nBooking ID: ${booking.id}\nPackage: ${booking.packageName}\nTotal: $${booking.total?.toLocaleString()}\nDate: ${new Date(booking.date).toLocaleDateString()}\n\nThank you for choosing Retreat Planner!`;
+        const blob = new Blob([content], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `receipt-${booking.id}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Receipt download started");
+    };
 
     const handleAnalyze = async () => {
         setIsLoading(true);
+        // Build structured prompt
+        const structuredInput = `Plan a retreat in ${destination} from ${startDate} to ${endDate} for ${attendees} people. Total budget is $${budget}.`;
+
         try {
-            const res = await retreatApi.analyzeRequirements(userInput, sessionId || undefined);
+            const res = await retreatApi.analyzeRequirements(structuredInput, sessionId || undefined);
             setSessionId(res.session_id);
             setStep('discover');
             handleDiscover(res.session_id);
@@ -70,10 +121,39 @@ export default function RetreatPlanner() {
     const handleRank = async (sid: string, updatedWeights?: Weights) => {
         setIsLoading(true);
         try {
-            const res = await retreatApi.rankPackages(sid, updatedWeights || weights);
+            const currentWeights = updatedWeights || weights;
+            const res = await retreatApi.rankPackages(sid, currentWeights);
             // Handle various response formats
             const packageData = res.packages || res.data || res;
-            setPackages(Array.isArray(packageData) ? packageData : []);
+            let sortedPackages = Array.isArray(packageData) ? [...packageData] : [];
+
+            // Explicit client-side sort as fallback/enhancement
+            const priceWeight = currentWeights.hotels?.price_weight || 50;
+            const trustWeight = currentWeights.hotels?.trust_weight || 50;
+
+            sortedPackages.sort((a, b) => {
+                // 1. Backend matches (Highest score first)
+                if (a.score !== undefined && b.score !== undefined && a.score !== b.score) {
+                    return b.score - a.score;
+                }
+
+                // 2. Price Preference
+                const priceA = a.total_cost || a.total_price || 0;
+                const priceB = b.total_cost || b.total_price || 0;
+
+                if (priceWeight > 50) {
+                    // High Price Focus = Affordability. Cheap first (ascending).
+                    if (priceA !== priceB) return priceA - priceB;
+                } else if (priceWeight < 50) {
+                    // Low Price Focus = Premium. Expensive first (descending).
+                    if (priceA !== priceB) return priceB - priceA;
+                }
+
+                // 3. Fallback to original rank
+                return (a.rank || 0) - (b.rank || 0);
+            });
+
+            setPackages(sortedPackages);
             setStep('rank');
             toast.success("Rankings updated based on your preferences");
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -124,6 +204,17 @@ export default function RetreatPlanner() {
             );
             setBookingId(res.master_booking_id);
             setStep('success');
+
+            // Save booking to list
+            const newBooking = {
+                id: res.master_booking_id,
+                packageName: selectedPackage.items?.hotels?.vendor || "Custom Retreat",
+                total: cartDetails.total,
+                date: new Date().toISOString(),
+                items: cartDetails.items
+            };
+            setBookings([newBooking, ...bookings]);
+
             toast.success("Payment successful!");
         } catch (error) {
             toast.error("Checkout failed");
@@ -153,14 +244,18 @@ export default function RetreatPlanner() {
         const items = { ...cartDetails.items };
         const item = { ...items[category] };
 
+        // Ensure we preserve the unit price
+        const unitPrice = item.unit_price || item.item?.price || item.item?.unit_price || 0;
         const newQty = Math.max(0, (item.quantity || 0) + delta);
+
         if (newQty === 0) {
             handleRemoveItem(category);
             return;
         }
 
         item.quantity = newQty;
-        item.subtotal = (item.unit_price || 0) * newQty;
+        item.unit_price = unitPrice; // Ensure it's preserved
+        item.subtotal = unitPrice * newQty;
         items[category] = item;
 
         updateCartLocal(items);
@@ -184,7 +279,7 @@ export default function RetreatPlanner() {
             setStep('rank');
         } else if (step === 'checkout') {
             setStep('cart');
-        } else if (step === 'success') {
+        } else if (step === 'success' || step === 'dashboard') {
             setStep('analyze');
             setSessionId("");
         }
@@ -203,32 +298,100 @@ export default function RetreatPlanner() {
                     <Button variant="ghost" onClick={handleBack} className="gap-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100">
                         <ArrowLeft className="w-4 h-4" /> Back
                     </Button>
-                    <div className="flex items-center gap-2">
-                        {['analyze', 'rank', 'cart', 'checkout'].map((s, idx) => (
-                            <div key={s} className={`w-2 h-2 rounded-full transition-all duration-500 ${(s === step || (s === 'rank' && step === 'discover')) ? 'w-8 bg-primary shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'bg-slate-200'
-                                }`} />
-                        ))}
+                    <div className="flex items-center gap-6">
+                        <Button variant="ghost" onClick={() => setStep('dashboard')} className="gap-2 text-slate-500 hover:text-primary transition-colors">
+                            <LayoutDashboard className="w-4 h-4" /> Dashboard
+                        </Button>
+                        <div className="flex items-center gap-2">
+                            {['analyze', 'rank', 'cart', 'checkout'].map((s, idx) => (
+                                <div key={s} className={`w-2 h-2 rounded-full transition-all duration-500 ${(s === step || (s === 'rank' && step === 'discover')) ? 'w-8 bg-primary shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'bg-slate-200'
+                                    }`} />
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 {step === 'analyze' && (
-                    <Card className="p-10 space-y-8 bg-white/70 backdrop-blur-xl border-slate-200/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative overflow-hidden group rounded-3xl">
+                    <Card className="p-10 space-y-10 bg-white/70 backdrop-blur-xl border-slate-200/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative overflow-hidden group rounded-[2.5rem]">
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                         <div className="text-center space-y-3 relative z-10">
                             <h2 className="text-4xl font-black tracking-tight text-slate-900">Plan Your Retreat</h2>
-                            <p className="text-slate-500 text-lg">Tell us your vision, and our AI agents will handle the logistics.</p>
+                            <p className="text-slate-500 text-lg">Our AI agents will find and rank the best options for your team.</p>
                         </div>
-                        <div className="space-y-4 relative z-10">
-                            <Input
-                                value={userInput}
-                                onChange={(e) => setUserInput(e.target.value)}
-                                placeholder="e.g., Plan a 3-day team offsite in New York for 20 people..."
-                                className="text-lg p-8 bg-white/50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
-                            />
-                            <Button onClick={handleAnalyze} disabled={isLoading} className="w-full h-16 text-xl font-bold gap-3 rounded-2xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.98]">
-                                {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
-                                Analyze Requirements
-                            </Button>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                            <div className="space-y-3 md:col-span-2">
+                                <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Where are you heading?</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-primary w-6 h-6" />
+                                    <Input
+                                        value={destination}
+                                        onChange={(e) => setDestination(e.target.value)}
+                                        placeholder="e.g., Paris, Tokyo, New York..."
+                                        className="text-lg pl-16 h-20 bg-white/50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-primary/50 transition-all rounded-[1.5rem] shadow-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Start Date</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-primary/60 w-5 h-5 pointer-events-none z-10" />
+                                    <Input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="text-lg pl-16 h-16 bg-white/50 border-slate-200 text-slate-900 focus:border-primary/50 transition-all rounded-[1.25rem] shadow-sm block w-full appearance-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 ml-2">End Date</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-primary/60 w-5 h-5 pointer-events-none z-10" />
+                                    <Input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="text-lg pl-16 h-16 bg-white/50 border-slate-200 text-slate-900 focus:border-primary/50 transition-all rounded-[1.25rem] shadow-sm block w-full appearance-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Attendees</label>
+                                <div className="relative">
+                                    <Users className="absolute left-6 top-1/2 -translate-y-1/2 text-primary/60 w-5 h-5" />
+                                    <Input
+                                        type="number"
+                                        value={attendees}
+                                        onChange={(e) => setAttendees(parseInt(e.target.value))}
+                                        className="text-lg pl-16 h-16 bg-white/50 border-slate-200 text-slate-900 focus:border-primary/50 transition-all rounded-[1.25rem] shadow-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Total Budget ($)</label>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 text-primary/60 w-5 h-5" />
+                                    <Input
+                                        type="number"
+                                        value={budget}
+                                        onChange={(e) => setBudget(parseInt(e.target.value))}
+                                        className="text-lg pl-16 h-16 bg-white/50 border-slate-200 text-slate-900 focus:border-primary/50 transition-all rounded-[1.25rem] shadow-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-2 pt-6">
+                                <Button onClick={handleAnalyze} disabled={isLoading} className="w-full h-20 text-2xl font-black gap-4 rounded-[1.5rem] shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.98]">
+                                    {isLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : <Sparkles className="w-8 h-8" />}
+                                    Analyze & Find Packages
+                                </Button>
+                                <p className="text-center text-slate-400 text-sm mt-4 font-medium italic">Our agents will scan 100+ vendors in seconds.</p>
+                            </div>
                         </div>
                     </Card>
                 )}
@@ -290,7 +453,17 @@ export default function RetreatPlanner() {
                             </div>
                         </Card>
 
-                        <div className="md:col-span-2 space-y-10">
+                        <div className="md:col-span-2 space-y-10 relative min-h-[400px]">
+                            {isLoading && step === 'rank' && (
+                                <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center rounded-[2.5rem] space-y-4 transition-all duration-500">
+                                    <div className="relative">
+                                        <div className="w-16 h-16 border-4 border-primary/20 rounded-full animate-ping absolute inset-0" />
+                                        <Loader2 className="w-16 h-16 text-primary animate-spin relative z-10" />
+                                    </div>
+                                    <p className="text-primary font-black uppercase tracking-[0.3em] text-sm animate-pulse">Refining Recommendations...</p>
+                                </div>
+                            )}
+
                             <div className="flex justify-between items-end mb-4 px-2">
                                 <div>
                                     <h2 className="text-4xl font-black tracking-tight text-slate-900">Recommended for You</h2>
@@ -418,7 +591,9 @@ export default function RetreatPlanner() {
 
                                         <div className="text-right min-w-[120px]">
                                             <p className="text-2xl font-black text-slate-900">${(cartItem.subtotal || 0).toLocaleString()}</p>
-                                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">${(cartItem.unit_price || 0).toLocaleString()} unit</p>
+                                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">
+                                                ${(cartItem.unit_price || cartItem.item?.price || cartItem.item?.unit_price || (cartItem.quantity ? Math.round(cartItem.subtotal / cartItem.quantity) : 0)).toLocaleString()} unit
+                                            </p>
                                         </div>
 
                                         <Button
@@ -531,10 +706,11 @@ export default function RetreatPlanner() {
                                     />
                                 </div>
                                 <div className="space-y-3">
-                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CVC</label>
+                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CVV</label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                                         <Input
+                                            type="password"
                                             value={paymentDetails.cvc}
                                             onChange={(e) => setPaymentDetails({ ...paymentDetails, cvc: e.target.value.replace(/\D/g, '').slice(0, 3) })}
                                             placeholder="123"
@@ -542,6 +718,21 @@ export default function RetreatPlanner() {
                                         />
                                     </div>
                                 </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 px-1">
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${saveCard ? 'bg-primary border-primary' : 'border-slate-200 group-hover:border-primary/50'}`}>
+                                        {saveCard && <CheckCircle className="w-4 h-4 text-white" />}
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        className="hidden"
+                                        checked={saveCard}
+                                        onChange={(e) => setSaveCard(e.target.checked)}
+                                    />
+                                    <span className="text-sm font-bold text-slate-500 group-hover:text-slate-900 transition-colors">Save card details securely for future retreats</span>
+                                </label>
                             </div>
 
                             <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-2xl text-green-700 text-sm font-medium">
@@ -571,10 +762,80 @@ export default function RetreatPlanner() {
                                 {bookingId}
                             </div>
                         </div>
-                        <Button onClick={() => { setStep('analyze'); setSessionId(""); }} className="w-full h-16 text-lg font-bold rounded-2xl bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button onClick={() => downloadReceipt({ id: bookingId, packageName: selectedPackage?.items?.hotels?.vendor || "Custom Retreat", total: cartDetails?.total, date: new Date().toISOString() })} variant="outline" className="h-16 text-lg font-bold rounded-2xl border-slate-200 text-slate-600 hover:text-slate-900 gap-3">
+                                <Download className="w-5 h-5" /> Receipt
+                            </Button>
+                            <Button onClick={() => setStep('dashboard')} className="h-16 text-lg font-bold rounded-2xl bg-slate-900 hover:bg-slate-800 text-white gap-3">
+                                <LayoutDashboard className="w-5 h-5" /> Dashboard
+                            </Button>
+                        </div>
+                        <Button onClick={() => { setStep('analyze'); setSessionId(""); }} variant="ghost" className="w-full h-14 text-slate-400 font-bold hover:text-slate-900">
                             Plan New Retreat
                         </Button>
                     </Card>
+                )}
+
+                {step === 'dashboard' && (
+                    <div className="space-y-10 max-w-3xl mx-auto">
+                        <div className="text-center space-y-4">
+                            <h2 className="text-4xl font-black tracking-tight text-slate-900">Your Bookings</h2>
+                            <p className="text-slate-500 text-lg">Manage and review your upcoming and past retreats.</p>
+                        </div>
+
+                        {bookings.length === 0 ? (
+                            <Card className="p-20 text-center space-y-6 bg-white/80 backdrop-blur-xl border-slate-200/60 rounded-[3rem] shadow-xl">
+                                <History className="w-20 h-20 text-slate-200 mx-auto" />
+                                <div className="space-y-2">
+                                    <h3 className="text-2xl font-bold text-slate-400">No bookings yet</h3>
+                                    <p className="text-slate-400">Your world-class retreats will appear here once finalized.</p>
+                                </div>
+                                <Button onClick={() => setStep('analyze')} className="bg-primary hover:bg-primary/90 text-white font-bold h-14 px-8 rounded-2xl">
+                                    Start Planning
+                                </Button>
+                            </Card>
+                        ) : (
+                            <div className="space-y-6">
+                                {bookings.map((booking, idx) => (
+                                    <Card key={idx} className="p-10 bg-white/70 backdrop-blur-sm border-slate-200/60 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+                                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                                            <FileText className="w-32 h-32" />
+                                        </div>
+                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-3">
+                                                    <Badge className="bg-green-500 text-white hover:bg-green-500 border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest shadow-lg shadow-green-500/20">
+                                                        Confirmed
+                                                    </Badge>
+                                                    <span className="text-xs font-black text-slate-300 font-mono">{booking.id}</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <h3 className="text-2xl font-black text-slate-900">{booking.packageName}</h3>
+                                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                                                        Booked on {new Date(booking.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right flex flex-col items-end gap-3 min-w-[150px]">
+                                                <p className="text-3xl font-black text-slate-900 tracking-tighter">${booking.total?.toLocaleString()}</p>
+                                                <Button
+                                                    onClick={() => downloadReceipt(booking)}
+                                                    variant="secondary"
+                                                    className="bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-bold gap-2 rounded-xl h-12 shadow-sm"
+                                                >
+                                                    <Download className="w-4 h-4" /> Receipt
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+
+                        <Button onClick={() => setStep('analyze')} variant="ghost" className="w-full h-12 text-slate-400 font-bold hover:text-primary transition-colors gap-2">
+                            <Sparkles className="w-4 h-4" /> Plan another retreat
+                        </Button>
+                    </div>
                 )}
             </div>
         </div>
