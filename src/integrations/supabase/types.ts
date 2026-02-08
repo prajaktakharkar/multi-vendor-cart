@@ -169,6 +169,42 @@ export type Database = {
         }
         Relationships: []
       }
+      transport_credentials: {
+        Row: {
+          client_id: string
+          client_secret: string
+          created_at: string
+          created_by: string
+          environment: string
+          id: string
+          is_active: boolean
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_secret: string
+          created_at?: string
+          created_by: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_secret?: string
+          created_at?: string
+          created_by?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       travel_requests: {
         Row: {
           admin_notes: string | null

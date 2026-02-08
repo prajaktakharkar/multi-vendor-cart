@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, Users, Calendar, LogOut, 
-  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send 
+  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateBookingDialog } from './CreateBookingDialog';
@@ -15,6 +15,7 @@ import { EditBookingDialog } from './EditBookingDialog';
 import { BookingCalendar } from './BookingCalendar';
 import { ChangeRequestsPanel } from './ChangeRequestsPanel';
 import { TravelRequestsPanel } from './TravelRequestsPanel';
+import { TransportCredentialsPanel } from './TransportCredentialsPanel';
 
 interface Booking {
   id: string;
@@ -213,6 +214,10 @@ export const AdminDashboard = () => {
               Calendar
             </TabsTrigger>
             <TabsTrigger value="employees">Employees</TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-1.5">
+              <Settings className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
@@ -354,6 +359,12 @@ export const AdminDashboard = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <div className="space-y-6">
+              <TransportCredentialsPanel />
+            </div>
           </TabsContent>
         </Tabs>
 
