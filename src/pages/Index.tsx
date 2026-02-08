@@ -1,7 +1,7 @@
-import { ShoppingCart } from "@/components/cart/ShoppingCart";
+import { TouchdownLanding } from "@/components/landing/TouchdownLanding";
 
 const Index = () => {
-  return <ShoppingCart />;
+  return <TouchdownLanding />;
 };
 
 export default Index;
