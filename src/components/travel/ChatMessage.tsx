@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Bot, User } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
 
 export interface Message {
   id: string;
@@ -33,7 +34,13 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           ? "bg-primary text-primary-foreground rounded-tr-sm" 
           : "bg-card border border-border text-foreground rounded-tl-sm"
       )}>
-        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        {isUser ? (
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
         <span className={cn(
           "text-xs mt-1 block",
           isUser ? "text-primary-foreground/70" : "text-muted-foreground"
