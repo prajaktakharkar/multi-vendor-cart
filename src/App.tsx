@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Travel from "./pages/Travel";
 import TravelSearch from "./pages/TravelSearch";
+import CheckoutCart from "./pages/CheckoutCart";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import DevAdmin from "./pages/DevAdmin";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dev-admin" element={<DevAdmin />} />
             <Route path="/cart" element={<Index />} />
+            <Route path="/checkout" element={<CheckoutCart />} />
             <Route path="/retreat-planner" element={<RetreatPlanner />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

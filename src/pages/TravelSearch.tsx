@@ -119,8 +119,15 @@ export default function TravelSearch() {
     }
   };
 
-  // Step 2: Select package and build cart
-  const handleSelectPackage = async (pkg: any) => {
+  // Step 2: Select package and navigate to checkout cart
+  const handleSelectPackage = (pkg: any) => {
+    const packageId = pkg.package_id || pkg.id;
+    // Navigate to unified checkout cart with session and package info
+    navigate(`/checkout?session_id=${sessionId}&package_id=${packageId}`);
+  };
+
+  // Alternative: Build cart inline (keep for backward compatibility)
+  const handleSelectPackageInline = async (pkg: any) => {
     setIsLoading(true);
     setSelectedPackage(pkg);
     setStep('building-cart');
@@ -229,10 +236,17 @@ export default function TravelSearch() {
           
           <div className="flex items-center gap-3">
             {sessionId && (
-              <Badge variant="secondary" className="text-xs hidden sm:flex">
-                <Sparkles className="w-3 h-3 mr-1" />
-                Session Active
-              </Badge>
+              <>
+                <Badge variant="secondary" className="text-xs hidden sm:flex">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Session Active
+                </Badge>
+                <Link to={`/checkout?session_id=${sessionId}`}>
+                  <Button variant="outline" size="icon" className="relative">
+                    <ShoppingCart className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </>
             )}
             {/* Progress indicators */}
             <div className="flex gap-1">
