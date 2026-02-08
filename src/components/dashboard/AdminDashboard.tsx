@@ -16,6 +16,7 @@ import { BookingCalendar } from './BookingCalendar';
 import { ChangeRequestsPanel } from './ChangeRequestsPanel';
 import { TravelRequestsPanel } from './TravelRequestsPanel';
 import { TransportCredentialsPanel } from './TransportCredentialsPanel';
+import { FlightCredentialsPanel } from './FlightCredentialsPanel';
 
 interface Booking {
   id: string;
@@ -363,6 +364,7 @@ export const AdminDashboard = () => {
 
           <TabsContent value="settings">
             <div className="space-y-6">
+              <FlightCredentialsPanel />
               <TransportCredentialsPanel />
             </div>
           </TabsContent>
