@@ -211,6 +211,60 @@ export type Database = {
         }
         Relationships: []
       }
+      team_roster: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          first_name: string
+          id: string
+          jersey_number: number | null
+          last_name: string
+          notes: string | null
+          position: string | null
+          role: string
+          seat_preference: string | null
+          special_requirements: string | null
+          status: string
+          team_name: string
+          travel_document: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          first_name: string
+          id?: string
+          jersey_number?: number | null
+          last_name: string
+          notes?: string | null
+          position?: string | null
+          role: string
+          seat_preference?: string | null
+          special_requirements?: string | null
+          status?: string
+          team_name: string
+          travel_document?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          first_name?: string
+          id?: string
+          jersey_number?: number | null
+          last_name?: string
+          notes?: string | null
+          position?: string | null
+          role?: string
+          seat_preference?: string | null
+          special_requirements?: string | null
+          status?: string
+          team_name?: string
+          travel_document?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transport_credentials: {
         Row: {
           client_id: string
