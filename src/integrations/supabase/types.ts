@@ -139,6 +139,48 @@ export type Database = {
         }
         Relationships: []
       }
+      flight_credentials: {
+        Row: {
+          api_key: string
+          api_secret: string | null
+          created_at: string
+          created_by: string
+          display_name: string
+          environment: string
+          id: string
+          is_active: boolean
+          is_preferred: boolean
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          api_key: string
+          api_secret?: string | null
+          created_at?: string
+          created_by: string
+          display_name: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          is_preferred?: boolean
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string
+          api_secret?: string | null
+          created_at?: string
+          created_by?: string
+          display_name?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          is_preferred?: boolean
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company_name: string | null
