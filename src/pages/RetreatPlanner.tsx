@@ -239,7 +239,7 @@ export default function RetreatPlanner() {
         });
     };
 
-    const handleUpdateQuantity = (category: string, delta: number) => {
+    const handleUpdateQuantity = async (category: string, delta: number) => {
         if (!cartDetails?.items) return;
         const items = { ...cartDetails.items };
         const item = { ...items[category] };
@@ -253,8 +253,27 @@ export default function RetreatPlanner() {
             return;
         }
 
+        // Try to call backend API, fall back to local update
+        try {
+            const res = await retreatApi.modifyCart(sessionId, {
+                item_type: category as 'flight' | 'hotel' | 'meeting_room' | 'catering',
+                action: 'update',
+                item_id: item.item?.id || item.id,
+                quantity: newQty,
+            });
+            // If backend returns updated cart, use it
+            if (res.cart) {
+                setCartDetails(res.cart);
+                toast.info(`Updated ${category.replace('_', ' ')} quantity`);
+                return;
+            }
+        } catch (error) {
+            console.log('Backend modify failed, using local update');
+        }
+
+        // Local fallback
         item.quantity = newQty;
-        item.unit_price = unitPrice; // Ensure it's preserved
+        item.unit_price = unitPrice;
         item.subtotal = unitPrice * newQty;
         items[category] = item;
 
@@ -262,8 +281,27 @@ export default function RetreatPlanner() {
         toast.info(`Updated ${category.replace('_', ' ')} quantity`);
     };
 
-    const handleRemoveItem = (category: string) => {
+    const handleRemoveItem = async (category: string) => {
         if (!cartDetails?.items) return;
+        
+        // Try to call backend API
+        try {
+            const item = cartDetails.items[category];
+            const res = await retreatApi.modifyCart(sessionId, {
+                item_type: category as 'flight' | 'hotel' | 'meeting_room' | 'catering',
+                action: 'remove',
+                item_id: item.item?.id || item.id,
+            });
+            if (res.cart) {
+                setCartDetails(res.cart);
+                toast.error(`Removed ${category.replace('_', ' ')} from cart`);
+                return;
+            }
+        } catch (error) {
+            console.log('Backend remove failed, using local update');
+        }
+
+        // Local fallback
         const items = { ...cartDetails.items };
         delete items[category];
         updateCartLocal(items);
