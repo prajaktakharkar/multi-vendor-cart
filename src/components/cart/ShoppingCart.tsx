@@ -4,6 +4,8 @@ import { CartItem, Seller } from "@/types/cart";
 import { mockCartItems, mockSellers } from "@/data/mockCart";
 import { SellerGroup } from "./SellerGroup";
 import { CartSummary } from "./CartSummary";
+import { AIRecommendations } from "./AIRecommendations";
+import { toast } from "sonner";
 
 export const ShoppingCart = () => {
   const [items, setItems] = useState<CartItem[]>(mockCartItems);
@@ -17,6 +19,19 @@ export const ShoppingCart = () => {
 
   const handleRemove = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleAddFromRecommendation = (item: Omit<CartItem, "quantity">) => {
+    setItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      }
+      return [...prev, { ...item, quantity: 1 }];
+    });
+    toast.success(`Added ${item.name} to cart`);
   };
 
   // Group items by seller
@@ -71,6 +86,12 @@ export const ShoppingCart = () => {
                 onRemove={handleRemove}
               />
             ))}
+            
+            {/* AI Recommendations */}
+            <AIRecommendations
+              cartItems={items}
+              onAddToCart={handleAddFromRecommendation}
+            />
           </div>
 
           {/* Summary */}
