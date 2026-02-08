@@ -6,6 +6,46 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Rate limiting: Track requests per user
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute (stricter for booking operations)
+
+function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+  
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  userLimit.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - userLimit.count };
+}
+
+// Sensitive data validation for booking details
+const sensitivePatterns = [
+  { pattern: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/, name: 'credit card number' },
+  { pattern: /\b\d{3}-\d{2}-\d{4}\b/, name: 'social security number' },
+];
+
+function validateNoSensitiveData(data: unknown): { valid: boolean; issue?: string } {
+  const jsonString = JSON.stringify(data);
+  
+  for (const { pattern, name } of sensitivePatterns) {
+    if (pattern.test(jsonString)) {
+      return { valid: false, issue: `Data appears to contain a ${name}. Please remove sensitive information.` };
+    }
+  }
+  
+  return { valid: true };
+}
+
 interface BookingRequest {
   flightId: string;
   provider: string;
@@ -263,10 +303,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = claimsData.claims.sub as string;
+
+    // Rate limiting check
+    const rateLimit = checkRateLimit(userId);
+    if (!rateLimit.allowed) {
+      console.log("Book flight: Rate limit exceeded for user", userId);
+      return new Response(
+        JSON.stringify({ error: "Too many booking requests. Please wait a moment before trying again." }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": "0"
+          } 
+        }
+      );
+    }
 
     // Parse request
     const body: BookingRequest = await req.json();
+
+    // Validate no sensitive data in passenger info
+    const validation = validateNoSensitiveData(body.passengers);
+    if (!validation.valid) {
+      console.log("Book flight: Rejected due to sensitive data in request");
+      return new Response(
+        JSON.stringify({ error: validation.issue }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!body.flightId || !body.provider || !body.passengers?.length || !body.contactEmail) {
       return new Response(

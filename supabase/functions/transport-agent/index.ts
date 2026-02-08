@@ -1,9 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+// Rate limiting: Track requests per user
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+
+function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+  
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  userLimit.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - userLimit.count };
+}
 
 // Mock transport options with dynamic pricing
 const transportProviders = {
@@ -132,9 +155,57 @@ serve(async (req: Request) => {
   }
 
   try {
+    // ========== AUTHENTICATION CHECK ==========
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.log('Transport agent: Missing or invalid authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required. Please sign in to use the transport agent.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.log('Transport agent: Invalid JWT token', claimsError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired session. Please sign in again.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+    console.log('Transport agent: Authenticated user', userId);
+
+    // ========== RATE LIMITING ==========
+    const rateLimit = checkRateLimit(userId);
+    if (!rateLimit.allowed) {
+      console.log('Transport agent: Rate limit exceeded for user', userId);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please wait a moment before trying again.' }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000))
+          } 
+        }
+      );
+    }
+
     const { action, message, passengers, cityId, pickup, dropoff, preferences, conversationHistory } = await req.json();
     
-    console.log('Transport agent request:', { action, passengers, cityId, pickup, dropoff });
+    console.log('Transport agent request:', { action, passengers, cityId, pickup, dropoff, userId });
 
     // Handle direct quote requests
     if (action === 'get_quotes') {
@@ -160,7 +231,13 @@ serve(async (req: Request) => {
           passengers,
           cityName: cityId?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': String(rateLimit.remaining)
+          } 
+        }
       );
     }
 
@@ -182,7 +259,13 @@ serve(async (req: Request) => {
             estimatedPickup: new Date(Date.now() + 10 * 60000).toISOString(),
           }
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': String(rateLimit.remaining)
+          } 
+        }
       );
     }
 
@@ -274,7 +357,13 @@ When you have enough info, say "I'll get real-time quotes for you now" and summa
         response,
         shouldGetQuotes,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': String(rateLimit.remaining)
+        } 
+      }
     );
 
   } catch (error) {
