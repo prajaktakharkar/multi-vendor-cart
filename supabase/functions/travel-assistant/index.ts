@@ -302,12 +302,18 @@ When creating a plan:
 
 Always use the tool when you have enough details to create a complete plan. Even if some details are estimated, create the plan so the user can review and save it.`;
 
+    // Get Lovable API key
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
     // Call Lovable AI Gateway with tools
-    const aiResponse = await fetch('https://ai-gateway.lovable.dev/api/chat', {
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
-        'x-project-id': Deno.env.get('SUPABASE_PROJECT_ID') || '',
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
@@ -325,7 +331,20 @@ Always use the tool when you have enough details to create a complete plan. Even
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI Gateway error:', errorText);
+      console.error('AI Gateway error:', aiResponse.status, errorText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'Usage limit reached. Please add credits to continue.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 402 }
+        );
+      }
       throw new Error(`AI Gateway error: ${aiResponse.status}`);
     }
 
