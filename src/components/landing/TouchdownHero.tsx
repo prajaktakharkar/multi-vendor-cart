@@ -17,7 +17,7 @@ interface TimeLeft {
 }
 
 const calculateTimeLeft = (): TimeLeft => {
-  const superBowlDate = new Date("2025-02-09T18:30:00-05:00"); // 6:30 PM ET kickoff
+  const superBowlDate = new Date("2026-02-08T18:30:00-05:00"); // Super Bowl LX kickoff
   const now = new Date();
   const difference = superBowlDate.getTime() - now.getTime();
 
@@ -115,7 +115,7 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
             ))}
           </div>
 
-          <p className="text-lg text-white/80 mb-2">until Super Bowl LIX kickoff</p>
+          <p className="text-lg text-white/80 mb-2">until Super Bowl LX kickoff</p>
           <p className="text-xl text-white/90 max-w-2xl mx-auto mb-10 drop-shadow-lg">
             Book complete travel packages for the biggest game of the year—flights, 
             hotels, game tickets, and VIP ground transportation all in one place.
