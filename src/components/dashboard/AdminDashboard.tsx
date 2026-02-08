@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, Users, Calendar, LogOut, 
-  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings, Sparkles 
+  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send, Settings, Sparkles, UserCheck 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateBookingDialog } from './CreateBookingDialog';
@@ -18,6 +18,7 @@ import { TravelRequestsPanel } from './TravelRequestsPanel';
 import { TransportCredentialsPanel } from './TransportCredentialsPanel';
 import { FlightCredentialsPanel } from './FlightCredentialsPanel';
 import { AIFlightBooking } from './AIFlightBooking';
+import { TeamRosterPanel } from './TeamRosterPanel';
 
 interface Booking {
   id: string;
@@ -219,6 +220,10 @@ export const AdminDashboard = () => {
               <CalendarDays className="w-4 h-4" />
               Calendar
             </TabsTrigger>
+            <TabsTrigger value="team-roster" className="flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4" />
+              Team Roster
+            </TabsTrigger>
             <TabsTrigger value="employees">Employees</TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1.5">
               <Settings className="w-4 h-4" />
@@ -308,6 +313,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="change-requests">
             <ChangeRequestsPanel employees={employees} />
+          </TabsContent>
+
+          <TabsContent value="team-roster">
+            <TeamRosterPanel />
           </TabsContent>
 
           <TabsContent value="calendar">
