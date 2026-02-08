@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plane, Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Plane, Send, Bot, User, Loader2, Sparkles, Building2, Car, MapPin, Star } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
@@ -14,31 +15,31 @@ interface Message {
   content: string;
 }
 
-interface FlightResult {
-  id: string;
-  airline: string;
-  flightNumber: string;
-  departure: string;
-  arrival: string;
-  duration: string;
-  stops: number;
-  price: number;
-  currency: string;
-  cabinClass: string;
-  seatsAvailable: number;
+interface SearchResults {
+  flights: any[];
+  hotels: any[];
+  venues: any[];
+  transport: any[];
 }
 
 const EXAMPLE_PROMPTS = [
-  "Book a flight from SFO to NYC for 2 people on March 20th, budget $800 per person, prefer morning departure",
-  "Find business class flights from LAX to London for next Monday, max budget $3000",
-  "I need to fly 5 employees from Chicago to Las Vegas for a conference March 25-28, economy class, keep it under $400 each",
+  "Plan a 3-day tech conference in Las Vegas for 50 people next month, budget $50k including venue, hotels, and flights from SF",
+  "Book flights and hotels for 5 employees traveling from NYC to Chicago, March 15-17, budget $500/person",
+  "Find a party venue in Miami for 100 guests on April 20th, plus airport transfers for out-of-town guests",
+  "Organize a team offsite: 20 people from Seattle to Austin, April 10-12, need meeting space and dinner venue",
 ];
 
 export const AIFlightBooking = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState<FlightResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResults>({
+    flights: [],
+    hotels: [],
+    venues: [],
+    transport: [],
+  });
+  const [activeResultTab, setActiveResultTab] = useState<string>('flights');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +47,14 @@ export const AIFlightBooking = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Auto-switch to tab with results
+  useEffect(() => {
+    if (searchResults.flights.length > 0) setActiveResultTab('flights');
+    else if (searchResults.hotels.length > 0) setActiveResultTab('hotels');
+    else if (searchResults.venues.length > 0) setActiveResultTab('venues');
+    else if (searchResults.transport.length > 0) setActiveResultTab('transport');
+  }, [searchResults]);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -82,9 +91,13 @@ export const AIFlightBooking = () => {
       };
       setMessages([...updatedMessages, assistantMessage]);
 
-      // Update search results if we got new ones
-      if (data.searchResults?.length > 0) {
-        setSearchResults(data.searchResults);
+      if (data.searchResults) {
+        setSearchResults(prev => ({
+          flights: data.searchResults.flights?.length > 0 ? data.searchResults.flights : prev.flights,
+          hotels: data.searchResults.hotels?.length > 0 ? data.searchResults.hotels : prev.hotels,
+          venues: data.searchResults.venues?.length > 0 ? data.searchResults.venues : prev.venues,
+          transport: data.searchResults.transport?.length > 0 ? data.searchResults.transport : prev.transport,
+        }));
       }
     } catch (err) {
       console.error('Error calling AI agent:', err);
@@ -99,17 +112,6 @@ export const AIFlightBooking = () => {
     sendMessage(input);
   };
 
-  const formatDuration = (duration: string) => {
-    // Parse ISO 8601 duration (e.g., PT5H30M)
-    const match = duration.match(/PT(\d+)H(\d+)?M?/);
-    if (match) {
-      const hours = match[1];
-      const minutes = match[2] || '0';
-      return `${hours}h ${minutes}m`;
-    }
-    return duration;
-  };
-
   const formatTime = (isoString: string) => {
     try {
       return new Date(isoString).toLocaleTimeString('en-US', {
@@ -121,8 +123,26 @@ export const AIFlightBooking = () => {
     }
   };
 
+  const formatDuration = (duration: string) => {
+    const match = duration.match(/PT(\d+)H(\d+)?M?/);
+    if (match) return `${match[1]}h ${match[2] || '0'}m`;
+    return duration;
+  };
+
+  const hasResults = searchResults.flights.length > 0 || 
+                     searchResults.hotels.length > 0 || 
+                     searchResults.venues.length > 0 || 
+                     searchResults.transport.length > 0;
+
+  const resultCounts = {
+    flights: searchResults.flights.length,
+    hotels: searchResults.hotels.length,
+    venues: searchResults.venues.length,
+    transport: searchResults.transport.length,
+  };
+
   return (
-    <Card className="flex flex-col h-[700px]">
+    <Card className="flex flex-col h-[750px]">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -130,16 +150,16 @@ export const AIFlightBooking = () => {
           </div>
           <div>
             <CardTitle className="flex items-center gap-2">
-              AI Flight Booking Agent
+              AI Travel & Event Booking
             </CardTitle>
             <CardDescription>
-              Describe your travel needs and I'll find and book the best flights
+              Book flights, hotels, venues, and transport — all in one conversation
             </CardDescription>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col min-h-0">
+      <CardContent className="flex-1 flex flex-col min-h-0 gap-4">
         {/* Chat Messages */}
         <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
           <div className="space-y-4 pb-4">
@@ -151,32 +171,36 @@ export const AIFlightBooking = () => {
                   </div>
                   <div className="bg-muted rounded-lg p-4 flex-1">
                     <p className="text-sm text-foreground">
-                      Hi! I'm your AI flight booking assistant. Tell me about your travel needs and I'll help you find and book the best flights.
+                      Hi! I'm your AI travel and event booking assistant. I can help you plan and book complete travel packages.
                     </p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Include details like:
-                    </p>
-                    <ul className="text-sm text-muted-foreground list-disc list-inside mt-1">
-                      <li>Origin and destination cities</li>
-                      <li>Travel dates (or date range)</li>
-                      <li>Number of passengers</li>
-                      <li>Budget per person</li>
-                      <li>Preferred times (morning/afternoon/evening)</li>
-                      <li>Class preference (economy/business/first)</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground mt-3 font-medium">What I can book:</p>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Plane className="w-4 h-4" /> Flights
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Building2 className="w-4 h-4" /> Hotels
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" /> Event Venues
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Car className="w-4 h-4" /> Ground Transport
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Try an example:</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2">
                     {EXAMPLE_PROMPTS.map((prompt, i) => (
                       <button
                         key={i}
                         onClick={() => setInput(prompt)}
-                        className="text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-3 py-1.5 rounded-full transition-colors text-left"
+                        className="w-full text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-3 py-2 rounded-lg transition-colors text-left"
                       >
-                        {prompt.slice(0, 50)}...
+                        {prompt}
                       </button>
                     ))}
                   </div>
@@ -225,7 +249,7 @@ export const AIFlightBooking = () => {
                 <div className="bg-muted rounded-lg p-4">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Searching flights and analyzing options...</span>
+                    <span className="text-sm">Searching and analyzing options...</span>
                   </div>
                 </div>
               </div>
@@ -233,48 +257,140 @@ export const AIFlightBooking = () => {
           </div>
         </ScrollArea>
 
-        {/* Flight Results Preview */}
-        {searchResults.length > 0 && (
-          <div className="border-t border-border pt-4 mt-4 flex-shrink-0">
-            <p className="text-xs font-medium text-muted-foreground mb-2">
-              Found {searchResults.length} flights
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {searchResults.slice(0, 5).map((flight) => (
-                <div
-                  key={flight.id}
-                  className="flex-shrink-0 bg-secondary/50 rounded-lg p-3 min-w-[200px]"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Plane className="w-3 h-3 text-primary" />
-                    <span className="text-xs font-medium">{flight.airline}</span>
-                    <Badge variant="outline" className="text-[10px] px-1 py-0">
-                      {flight.flightNumber}
-                    </Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatTime(flight.departure)} → {formatTime(flight.arrival)}
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-muted-foreground">
-                      {formatDuration(flight.duration)} • {flight.stops === 0 ? 'Direct' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`}
-                    </span>
-                    <span className="text-sm font-semibold text-primary">
-                      ${flight.price}
-                    </span>
-                  </div>
+        {/* Results Preview */}
+        {hasResults && (
+          <div className="border-t border-border pt-4 flex-shrink-0">
+            <Tabs value={activeResultTab} onValueChange={setActiveResultTab}>
+              <TabsList className="mb-3">
+                {resultCounts.flights > 0 && (
+                  <TabsTrigger value="flights" className="flex items-center gap-1.5">
+                    <Plane className="w-3 h-3" />
+                    Flights ({resultCounts.flights})
+                  </TabsTrigger>
+                )}
+                {resultCounts.hotels > 0 && (
+                  <TabsTrigger value="hotels" className="flex items-center gap-1.5">
+                    <Building2 className="w-3 h-3" />
+                    Hotels ({resultCounts.hotels})
+                  </TabsTrigger>
+                )}
+                {resultCounts.venues > 0 && (
+                  <TabsTrigger value="venues" className="flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3" />
+                    Venues ({resultCounts.venues})
+                  </TabsTrigger>
+                )}
+                {resultCounts.transport > 0 && (
+                  <TabsTrigger value="transport" className="flex items-center gap-1.5">
+                    <Car className="w-3 h-3" />
+                    Transport ({resultCounts.transport})
+                  </TabsTrigger>
+                )}
+              </TabsList>
+
+              <TabsContent value="flights" className="mt-0">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {searchResults.flights.slice(0, 6).map((flight) => (
+                    <div key={flight.id} className="flex-shrink-0 bg-secondary/50 rounded-lg p-3 min-w-[200px]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Plane className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-medium">{flight.airline}</span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          {flight.flightNumber}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatTime(flight.departureTime || flight.departure)} → {formatTime(flight.arrivalTime || flight.arrival)}
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">
+                          {formatDuration(flight.duration)} • {flight.stops === 0 ? 'Direct' : `${flight.stops} stop`}
+                        </span>
+                        <span className="text-sm font-semibold text-primary">${flight.price}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </TabsContent>
+
+              <TabsContent value="hotels" className="mt-0">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {searchResults.hotels.slice(0, 6).map((hotel) => (
+                    <div key={hotel.id} className="flex-shrink-0 bg-secondary/50 rounded-lg p-3 min-w-[220px]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Building2 className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-medium truncate">{hotel.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mb-1">
+                        {Array(hotel.starRating).fill(0).map((_, i) => (
+                          <Star key={i} className="w-3 h-3 fill-primary text-primary" />
+                        ))}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{hotel.roomType}</div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">/night</span>
+                        <span className="text-sm font-semibold text-primary">${hotel.pricePerNight}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="venues" className="mt-0">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {searchResults.venues.slice(0, 6).map((venue) => (
+                    <div key={venue.id} className="flex-shrink-0 bg-secondary/50 rounded-lg p-3 min-w-[220px]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <MapPin className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-medium truncate">{venue.name}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-1">
+                        Capacity: {venue.capacity} guests
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {venue.amenities?.slice(0, 2).map((a: string) => (
+                          <Badge key={a} variant="outline" className="text-[10px] px-1 py-0">{a}</Badge>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">/day</span>
+                        <span className="text-sm font-semibold text-primary">${venue.pricePerDay}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="transport" className="mt-0">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {searchResults.transport.slice(0, 6).map((ride) => (
+                    <div key={ride.id} className="flex-shrink-0 bg-secondary/50 rounded-lg p-3 min-w-[180px]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Car className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-medium capitalize">{ride.provider}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{ride.vehicleType}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {ride.estimatedDuration || ride.duration} • {ride.capacity} seats
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        {ride.surge && <Badge variant="destructive" className="text-[10px]">Surge</Badge>}
+                        <span className="text-sm font-semibold text-primary ml-auto">${ride.estimatedPrice || ride.price}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="flex gap-2 pt-4 flex-shrink-0">
+        <form onSubmit={handleSubmit} className="flex gap-2 flex-shrink-0">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your flight needs..."
+            placeholder="Describe your travel or event needs..."
             disabled={isLoading}
             className="flex-1"
           />
