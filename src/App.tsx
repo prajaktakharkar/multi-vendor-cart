@@ -24,13 +24,13 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Travel />} />
+            <Route path="/" element={<Index />} />
+            <Route path="/travel" element={<Travel />} />
             <Route path="/search" element={<TravelSearch />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dev-admin" element={<DevAdmin />} />
-            <Route path="/cart" element={<Index />} />
-            <Route path="/checkout" element={<CheckoutCart />} />
+            <Route path="/cart" element={<CheckoutCart />} />
             <Route path="/retreat-planner" element={<RetreatPlanner />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
