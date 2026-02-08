@@ -78,6 +78,8 @@ export default function TravelSearch() {
       // Agent 1: Analyze requirements
       const analyzeRes = await retreatApi.analyzeRequirements(structuredInput);
       setSessionId(analyzeRes.session_id);
+      // Store session in localStorage for cart access across pages
+      localStorage.setItem('touchdown_session_id', analyzeRes.session_id);
       setCurrentAgent(2);
       
       // Agent 2: Discover options
