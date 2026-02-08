@@ -53,6 +53,39 @@ export type Database = {
         }
         Relationships: []
       }
+      companies: {
+        Row: {
+          created_at: string
+          employee_count: number | null
+          id: string
+          industry: string | null
+          name: string
+          plan_type: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_count?: number | null
+          id?: string
+          industry?: string | null
+          name: string
+          plan_type?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_count?: number | null
+          id?: string
+          industry?: string | null
+          name?: string
+          plan_type?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company_name: string | null
