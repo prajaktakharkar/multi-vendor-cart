@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Trophy, Plane, Hotel, Car, Ticket, LogIn } from "lucide-react";
+import { Trophy, Plane, Hotel, Car, Ticket, LogIn, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import heroStadium from "@/assets/hero-stadium.jpg";
 
@@ -35,7 +35,9 @@ const calculateTimeLeft = (): TimeLeft => {
 
 export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,7 +46,14 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
 
     return () => clearInterval(timer);
   }, []);
-  const { user } = useAuth();
+
+  // Check for active session on mount
+  useEffect(() => {
+    const storedSession = localStorage.getItem('touchdown_session_id');
+    if (storedSession) {
+      setActiveSessionId(storedSession);
+    }
+  }, []);
 
   const handleStartPlanning = () => {
     if (onStartPlanning) {
@@ -65,20 +74,30 @@ export const TouchdownHero = ({ onStartPlanning }: TouchdownHeroProps) => {
             </div>
             <span className="font-bold text-xl text-white drop-shadow-lg">Touchdown</span>
           </div>
-          {user ? (
-            <Link to="/dashboard">
-              <Button variant="secondary" size="sm">
-                Go to Dashboard
-              </Button>
-            </Link>
-          ) : (
-            <Link to="/auth">
-              <Button variant="secondary" size="sm">
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign In
-              </Button>
-            </Link>
-          )}
+          <div className="flex items-center gap-3">
+            {activeSessionId && (
+              <Link to={`/checkout?session_id=${activeSessionId}`}>
+                <Button variant="secondary" size="sm" className="gap-2">
+                  <ShoppingCart className="w-4 h-4" />
+                  <span className="hidden sm:inline">View Cart</span>
+                </Button>
+              </Link>
+            )}
+            {user ? (
+              <Link to="/dashboard">
+                <Button variant="secondary" size="sm">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button variant="secondary" size="sm">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </nav>
 

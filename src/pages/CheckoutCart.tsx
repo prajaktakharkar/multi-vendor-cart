@@ -233,6 +233,8 @@ export default function CheckoutCart() {
 
       setBookingId(masterBookingId);
       setStep("success");
+      // Clear session after successful checkout
+      localStorage.removeItem("touchdown_session_id");
       toast.success("Booking confirmed!");
     } catch (error) {
       console.error("Checkout failed:", error);
