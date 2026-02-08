@@ -14,6 +14,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import {
   Package,
   Plane,
   Building2,
@@ -96,6 +107,8 @@ export const MyBookingsPanel = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -116,6 +129,30 @@ export const MyBookingsPanel = () => {
       console.error('Error fetching bookings:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async () => {
+    if (!selectedBooking) return;
+
+    setIsCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', selectedBooking.id);
+
+      if (error) throw error;
+
+      toast.success('Booking cancelled successfully');
+      setCancelDialogOpen(false);
+      setSelectedBooking(null);
+      fetchBookings();
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      toast.error('Failed to cancel booking. Please try again.');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -308,13 +345,62 @@ export const MyBookingsPanel = () => {
                 </div>
               )}
 
-              <Button className="w-full" onClick={() => setSelectedBooking(null)}>
-                Close
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                {selectedBooking.status !== 'cancelled' && (
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => setCancelDialogOpen(true)}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Cancel Booking
+                  </Button>
+                )}
+                <Button 
+                  variant={selectedBooking.status === 'cancelled' ? 'default' : 'outline'} 
+                  className="flex-1" 
+                  onClick={() => setSelectedBooking(null)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Your booking 
+              {selectedBooking?.details?.confirmationNumber && (
+                <span className="font-mono font-medium"> ({selectedBooking.details.confirmationNumber})</span>
+              )} will be cancelled and you may be subject to cancellation fees.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelling}>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelBooking}
+              disabled={isCancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCancelling ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                'Yes, Cancel Booking'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
