@@ -9,6 +9,7 @@ import Travel from "./pages/Travel";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import DevAdmin from "./pages/DevAdmin";
+import RetreatPlanner from "./pages/RetreatPlanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dev-admin" element={<DevAdmin />} />
             <Route path="/cart" element={<Index />} />
+            <Route path="/retreat-planner" element={<RetreatPlanner />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
