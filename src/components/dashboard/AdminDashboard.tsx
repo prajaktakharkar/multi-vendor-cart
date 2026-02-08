@@ -19,6 +19,7 @@ import { TransportCredentialsPanel } from './TransportCredentialsPanel';
 import { FlightCredentialsPanel } from './FlightCredentialsPanel';
 import { AIFlightBooking } from './AIFlightBooking';
 import { TeamRosterPanel } from './TeamRosterPanel';
+import { MyBookingsPanel } from './MyBookingsPanel';
 
 interface Booking {
   id: string;
@@ -207,6 +208,10 @@ export const AdminDashboard = () => {
               <Sparkles className="w-4 h-4" />
               AI Booking
             </TabsTrigger>
+            <TabsTrigger value="my-bookings" className="flex items-center gap-1.5">
+              <Calendar className="w-4 h-4" />
+              My Bookings
+            </TabsTrigger>
             <TabsTrigger value="bookings">All Bookings</TabsTrigger>
             <TabsTrigger value="travel-requests" className="flex items-center gap-1.5">
               <Send className="w-4 h-4" />
@@ -233,6 +238,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="ai-booking">
             <AIFlightBooking />
+          </TabsContent>
+
+          <TabsContent value="my-bookings">
+            <MyBookingsPanel />
           </TabsContent>
 
           <TabsContent value="bookings">
