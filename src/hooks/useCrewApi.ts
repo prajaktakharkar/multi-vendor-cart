@@ -325,6 +325,97 @@ export function useRankPackages() {
   };
 }
 
+// Build cart hook
+export function useBuildCart() {
+  const { sessionId } = useCrewSession();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (packageId: string) => retreatApi.buildCart(sessionId!, packageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart', sessionId] });
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to build cart', { description: error.message });
+    },
+  });
+
+  return {
+    buildCart: mutation.mutate,
+    buildCartAsync: mutation.mutateAsync,
+    cart: mutation.data,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+// Modify cart hook
+export function useModifyCart() {
+  const { sessionId } = useCrewSession();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (modifications: {
+      item_type: 'flight' | 'hotel' | 'meeting_room' | 'catering';
+      action: 'add' | 'remove' | 'update';
+      item_id?: string;
+      quantity?: number;
+      options?: Record<string, any>;
+    }) => retreatApi.modifyCart(sessionId!, modifications),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart', sessionId] });
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to modify cart', { description: error.message });
+    },
+  });
+
+  return {
+    modifyCart: mutation.mutate,
+    modifyCartAsync: mutation.mutateAsync,
+    result: mutation.data,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+// Get cart hook
+export function useCart() {
+  const { sessionId } = useCrewSession();
+
+  return useQuery({
+    queryKey: ['cart', sessionId],
+    queryFn: () => retreatApi.getCart(sessionId!),
+    enabled: !!sessionId,
+  });
+}
+
+// Checkout hook
+export function useCheckout() {
+  const { sessionId } = useCrewSession();
+
+  const mutation = useMutation({
+    mutationFn: ({ contact, payment }: {
+      contact: { name: string; email: string };
+      payment: { method: string; stripe_token: string };
+    }) => retreatApi.checkout(sessionId!, contact, payment),
+    onSuccess: () => {
+      toast.success('Checkout successful!');
+    },
+    onError: (error: Error) => {
+      toast.error('Checkout failed', { description: error.message });
+    },
+  });
+
+  return {
+    checkout: mutation.mutate,
+    checkoutAsync: mutation.mutateAsync,
+    result: mutation.data,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
 // Combined hook for full workflow
 export function useCrewApi() {
   const session = useCrewSession();
@@ -336,6 +427,9 @@ export function useCrewApi() {
   const analyzeRequirements = useAnalyzeRequirements();
   const discoverOptions = useDiscoverOptions();
   const rankPackages = useRankPackages();
+  const buildCart = useBuildCart();
+  const modifyCart = useModifyCart();
+  const checkout = useCheckout();
 
   return {
     session,
@@ -347,6 +441,11 @@ export function useCrewApi() {
     analyze: analyzeRequirements,
     discover: discoverOptions,
     rank: rankPackages,
+    cart: {
+      build: buildCart,
+      modify: modifyCart,
+    },
+    checkout,
   };
 }
 

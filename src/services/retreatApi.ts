@@ -170,6 +170,32 @@ export const retreatApi = {
     return response.json();
   },
 
+  // Cart modify endpoint - Agent 4
+  async modifyCart(sessionId: string, modifications: {
+    item_type: 'flight' | 'hotel' | 'meeting_room' | 'catering';
+    action: 'add' | 'remove' | 'update';
+    item_id?: string;
+    quantity?: number;
+    options?: Record<string, any>;
+  }) {
+    const response = await fetch(`${BASE_URL}/api/v1/cart/modify?session_id=${sessionId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(modifications),
+    });
+    if (!response.ok) throw new Error('Failed to modify cart');
+    return response.json();
+  },
+
+  // Get current cart state
+  async getCart(sessionId: string) {
+    const response = await fetch(`${BASE_URL}/api/v1/cart?session_id=${sessionId}`, {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Failed to get cart');
+    return response.json();
+  },
+
   async checkout(sessionId: string, contact: { name: string; email: string }, payment: { method: string; stripe_token: string }) {
     const response = await fetch(`${BASE_URL}/api/v1/checkout?session_id=${sessionId}`, {
       method: 'POST',
