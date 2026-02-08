@@ -8,11 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, LogOut, Calendar,
   Clock, MapPin, CheckCircle, ArrowRight,
-  CalendarDays, Timer, MessageSquare, Edit
+  CalendarDays, Timer, MessageSquare, Edit, Send
 } from 'lucide-react';
 import { format, isAfter, isBefore, isToday, differenceInDays } from 'date-fns';
 import { ChangeRequestDialog } from './ChangeRequestDialog';
 import { MyRequestsPanel } from './MyRequestsPanel';
+import { NewTravelRequestDialog } from './NewTravelRequestDialog';
+import { MyTravelRequests } from './MyTravelRequests';
 interface BookingDetails {
   // Flight details
   airline?: string;
@@ -59,6 +61,8 @@ export const EmployeeDashboard = () => {
   const [changeRequestDialogOpen, setChangeRequestDialogOpen] = useState(false);
   const [selectedBookingForChange, setSelectedBookingForChange] = useState<Booking | null>(null);
   const [requestsRefreshKey, setRequestsRefreshKey] = useState(0);
+  const [newTravelDialogOpen, setNewTravelDialogOpen] = useState(false);
+  const [travelRequestsRefreshKey, setTravelRequestsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -327,6 +331,10 @@ export const EmployeeDashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button onClick={() => setNewTravelDialogOpen(true)}>
+              <Send className="w-4 h-4 mr-2" />
+              Request Travel
+            </Button>
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{profile?.full_name || 'Employee'}</p>
               <Badge variant="outline" className="text-xs">Employee</Badge>
@@ -407,9 +415,13 @@ export const EmployeeDashboard = () => {
               Upcoming ({upcomingBookings.length})
             </TabsTrigger>
             <TabsTrigger value="all">All Bookings</TabsTrigger>
+            <TabsTrigger value="travel-requests" className="flex items-center gap-1.5">
+              <Send className="w-4 h-4" />
+              Travel Requests
+            </TabsTrigger>
             <TabsTrigger value="requests" className="flex items-center gap-1.5">
               <MessageSquare className="w-4 h-4" />
-              My Requests
+              Change Requests
             </TabsTrigger>
             <TabsTrigger value="past">Past</TabsTrigger>
           </TabsList>
@@ -456,6 +468,10 @@ export const EmployeeDashboard = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="travel-requests">
+            <MyTravelRequests refreshKey={travelRequestsRefreshKey} />
+          </TabsContent>
+
           <TabsContent value="requests">
             <MyRequestsPanel key={requestsRefreshKey} />
           </TabsContent>
@@ -488,6 +504,13 @@ export const EmployeeDashboard = () => {
         open={changeRequestDialogOpen}
         onOpenChange={setChangeRequestDialogOpen}
         onRequestSubmitted={() => setRequestsRefreshKey(k => k + 1)}
+      />
+
+      {/* New Travel Request Dialog */}
+      <NewTravelRequestDialog
+        open={newTravelDialogOpen}
+        onOpenChange={setNewTravelDialogOpen}
+        onRequestSubmitted={() => setTravelRequestsRefreshKey(k => k + 1)}
       />
     </div>
   );

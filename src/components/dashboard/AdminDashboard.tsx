@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plane, Building2, Car, Users, Calendar, LogOut, 
-  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare 
+  Plus, ChevronRight, Clock, Pencil, CalendarDays, MessageSquare, Send 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CreateBookingDialog } from './CreateBookingDialog';
 import { EditBookingDialog } from './EditBookingDialog';
 import { BookingCalendar } from './BookingCalendar';
 import { ChangeRequestsPanel } from './ChangeRequestsPanel';
+import { TravelRequestsPanel } from './TravelRequestsPanel';
 
 interface Booking {
   id: string;
@@ -199,7 +200,11 @@ export const AdminDashboard = () => {
         <Tabs defaultValue="bookings" className="space-y-6">
           <TabsList>
             <TabsTrigger value="bookings">All Bookings</TabsTrigger>
-            <TabsTrigger value="requests" className="flex items-center gap-1.5">
+            <TabsTrigger value="travel-requests" className="flex items-center gap-1.5">
+              <Send className="w-4 h-4" />
+              Travel Requests
+            </TabsTrigger>
+            <TabsTrigger value="change-requests" className="flex items-center gap-1.5">
               <MessageSquare className="w-4 h-4" />
               Change Requests
             </TabsTrigger>
@@ -279,7 +284,14 @@ export const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="requests">
+          <TabsContent value="travel-requests">
+            <TravelRequestsPanel 
+              employees={employees} 
+              onCreateBooking={() => setCreateDialogOpen(true)}
+            />
+          </TabsContent>
+
+          <TabsContent value="change-requests">
             <ChangeRequestsPanel employees={employees} />
           </TabsContent>
 

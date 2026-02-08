@@ -169,6 +169,60 @@ export type Database = {
         }
         Relationships: []
       }
+      travel_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          destination: string
+          end_date: string | null
+          estimated_budget: number | null
+          id: string
+          preferences: Json | null
+          purpose: string
+          request_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          destination: string
+          end_date?: string | null
+          estimated_budget?: number | null
+          id?: string
+          preferences?: Json | null
+          purpose: string
+          request_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          destination?: string
+          end_date?: string | null
+          estimated_budget?: number | null
+          id?: string
+          preferences?: Json | null
+          purpose?: string
+          request_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
