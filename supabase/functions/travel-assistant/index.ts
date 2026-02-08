@@ -6,6 +6,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ========== SECURITY: Sensitive Data Validation ==========
+// Patterns to detect and reject sensitive data in JSONB fields
+const sensitivePatterns = [
+  { pattern: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/, name: 'credit card number' },
+  { pattern: /\b\d{3}-\d{2}-\d{4}\b/, name: 'social security number' },
+  { pattern: /\b(?:passport|passport\s*(?:no|number|#))\s*[:=]?\s*\w+/i, name: 'passport number' },
+  { pattern: /\b\d{9}\b/, name: 'potential SSN without dashes' },
+];
+
+function validateNoSensitiveData(data: unknown): { valid: boolean; issue?: string } {
+  const jsonString = JSON.stringify(data);
+  
+  for (const { pattern, name } of sensitivePatterns) {
+    if (pattern.test(jsonString)) {
+      return { valid: false, issue: `Data appears to contain a ${name}. Please remove sensitive information.` };
+    }
+  }
+  
+  return { valid: true };
+}
+
+// Rate limiting: Track requests per user
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute for chat
+
+function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+  
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  userLimit.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - userLimit.count };
+}
+
 // Static demo data embedded in the function
 const travelData = {
   cities: {
@@ -111,8 +154,22 @@ serve(async (req: Request) => {
     
     console.log('Travel assistant request:', { message, cityId, historyLength: conversationHistory?.length, saveBookings, targetUserId });
 
-    // Handle saving bookings
+    // Handle saving bookings - requires authentication
     if (saveBookings && bookingsToSave) {
+      // ========== SECURITY: Validate JSONB data before saving ==========
+      for (const booking of bookingsToSave) {
+        if (booking.details) {
+          const validation = validateNoSensitiveData(booking.details);
+          if (!validation.valid) {
+            console.log('Travel assistant: Rejected booking due to sensitive data');
+            return new Response(
+              JSON.stringify({ error: validation.issue }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+            );
+          }
+        }
+      }
+
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) {
         return new Response(
