@@ -1,0 +1,309 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Plane, Building2, Car, Users, Calendar, LogOut, 
+  Plus, ChevronRight, Clock, MapPin 
+} from 'lucide-react';
+import { format } from 'date-fns';
+
+interface Booking {
+  id: string;
+  user_id: string;
+  booking_type: 'flight' | 'hotel' | 'car';
+  status: 'pending' | 'confirmed' | 'cancelled';
+  details: Record<string, unknown>;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+}
+
+interface Employee {
+  id: string;
+  email: string;
+  full_name: string | null;
+}
+
+export const AdminDashboard = () => {
+  const { profile, signOut } = useAuth();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      // Fetch all bookings
+      const { data: bookingsData } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (bookingsData) {
+        setBookings(bookingsData as Booking[]);
+      }
+
+      // Fetch all employee profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, email, full_name');
+
+      if (profilesData) {
+        setEmployees(profilesData);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getBookingIcon = (type: string) => {
+    switch (type) {
+      case 'flight': return <Plane className="w-4 h-4" />;
+      case 'hotel': return <Building2 className="w-4 h-4" />;
+      case 'car': return <Car className="w-4 h-4" />;
+      default: return null;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      default: return '';
+    }
+  };
+
+  const stats = {
+    totalBookings: bookings.length,
+    flights: bookings.filter(b => b.booking_type === 'flight').length,
+    hotels: bookings.filter(b => b.booking_type === 'hotel').length,
+    cars: bookings.filter(b => b.booking_type === 'car').length,
+    employees: employees.length,
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <Plane className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-semibold text-foreground">TravelPlan Pro</h1>
+              <p className="text-xs text-muted-foreground">Admin Dashboard</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm font-medium text-foreground">{profile?.full_name || 'Admin'}</p>
+              <Badge variant="secondary" className="text-xs">Company Admin</Badge>
+            </div>
+            <Button variant="ghost" size="icon" onClick={signOut}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalBookings}</p>
+                  <p className="text-sm text-muted-foreground">Total Bookings</p>
+                </div>
+                <Calendar className="w-8 h-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats.flights}</p>
+                  <p className="text-sm text-muted-foreground">Flights</p>
+                </div>
+                <Plane className="w-8 h-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats.hotels}</p>
+                  <p className="text-sm text-muted-foreground">Hotels</p>
+                </div>
+                <Building2 className="w-8 h-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats.cars}</p>
+                  <p className="text-sm text-muted-foreground">Cars</p>
+                </div>
+                <Car className="w-8 h-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats.employees}</p>
+                  <p className="text-sm text-muted-foreground">Employees</p>
+                </div>
+                <Users className="w-8 h-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs defaultValue="bookings" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="bookings">All Bookings</TabsTrigger>
+            <TabsTrigger value="employees">Employees</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="bookings">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Travel Bookings</CardTitle>
+                  <CardDescription>Manage all employee travel arrangements</CardDescription>
+                </div>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Booking
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : bookings.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="font-medium text-foreground mb-2">No bookings yet</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Create your first booking to get started
+                    </p>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Booking
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {bookings.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                            {getBookingIcon(booking.booking_type)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground capitalize">
+                              {booking.booking_type} Booking
+                            </p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              {booking.start_date && (
+                                <>
+                                  <Clock className="w-3 h-3" />
+                                  <span>{format(new Date(booking.start_date), 'MMM d, yyyy')}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={getStatusColor(booking.status)}>
+                            {booking.status}
+                          </Badge>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="employees">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Team Members</CardTitle>
+                  <CardDescription>Manage employee access and view their schedules</CardDescription>
+                </div>
+                <Button variant="outline">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Invite Employee
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {employees.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="font-medium text-foreground mb-2">No employees yet</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Invite team members to join your organization
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {employees.map((employee) => (
+                      <div
+                        key={employee.id}
+                        className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-sm font-medium text-primary">
+                              {employee.full_name?.charAt(0) || employee.email.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {employee.full_name || 'Unnamed Employee'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{employee.email}</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          View Schedule
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+};

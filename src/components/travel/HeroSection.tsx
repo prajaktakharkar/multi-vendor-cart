@@ -1,12 +1,42 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plane, Building2, Car, Calendar } from "lucide-react";
+import { Plane, Building2, Car, Calendar, LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeroSectionProps {
   onStartPlanning: () => void;
 }
 
 export const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
+  const { user } = useAuth();
+
   return (
+    <>
+      {/* Top nav bar */}
+      <nav className="absolute top-0 left-0 right-0 z-20 px-6 py-4">
+        <div className="container mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Plane className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-semibold text-foreground">TravelPlan Pro</span>
+          </div>
+          {user ? (
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm">
+                Go to Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/auth">
+              <Button variant="outline" size="sm">
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+            </Link>
+          )}
+        </div>
+      </nav>
     <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
@@ -58,5 +88,6 @@ export const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
         </div>
       </div>
     </section>
+    </>
   );
 };
