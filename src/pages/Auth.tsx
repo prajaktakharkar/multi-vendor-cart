@@ -9,29 +9,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plane, Building2, Car, Loader2 } from 'lucide-react';
 import { z } from 'zod';
-
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
-
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading, signIn, signUp } = useAuth();
-  
+  const {
+    user,
+    loading,
+    signIn,
+    signUp
+  } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-
   useEffect(() => {
     if (user && !loading) {
       navigate('/dashboard');
     }
   }, [user, loading, navigate]);
-
   const validateForm = (isSignUp: boolean) => {
     try {
       emailSchema.parse(email);
@@ -48,17 +48,14 @@ export default function Auth() {
       return false;
     }
   };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
     if (!validateForm(false)) return;
-    
     setIsLoading(true);
-    
-    const { error } = await signIn(email, password);
-    
+    const {
+      error
+    } = await signIn(email, password);
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
         setError('Invalid email or password. Please try again.');
@@ -68,21 +65,17 @@ export default function Auth() {
         setError(error.message);
       }
     }
-    
     setIsLoading(false);
   };
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    
     if (!validateForm(true)) return;
-    
     setIsLoading(true);
-    
-    const { error } = await signUp(email, password, fullName);
-    
+    const {
+      error
+    } = await signUp(email, password, fullName);
     if (error) {
       if (error.message.includes('User already registered')) {
         setError('An account with this email already exists. Please sign in instead.');
@@ -95,20 +88,14 @@ export default function Auth() {
       setPassword('');
       setFullName('');
     }
-    
     setIsLoading(false);
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+    return <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
+  return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
@@ -117,7 +104,7 @@ export default function Auth() {
               <Plane className="w-6 h-6 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">TravelPlan Pro</h1>
+          <h1 className="text-2xl font-bold text-foreground">Touchdown</h1>
           <p className="text-muted-foreground mt-1">Corporate Travel Management</p>
         </div>
 
@@ -133,53 +120,29 @@ export default function Auth() {
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
 
-              {error && (
-                <Alert variant="destructive" className="mb-4">
+              {error && <Alert variant="destructive" className="mb-4">
                   <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+                </Alert>}
 
-              {success && (
-                <Alert className="mb-4 border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400">
+              {success && <Alert className="mb-4 border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400">
                   <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
+                </Alert>}
 
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
+                    <Input id="signin-email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
+                    <Input id="signin-password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
+                    {isLoading ? <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Signing in...
-                      </>
-                    ) : (
-                      'Sign In'
-                    )}
+                      </> : 'Sign In'}
                   </Button>
                 </form>
               </TabsContent>
@@ -188,49 +151,21 @@ export default function Auth() {
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="John Smith"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
+                    <Input id="signup-name" type="text" placeholder="John Smith" value={fullName} onChange={e => setFullName(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
+                    <Input id="signup-email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
+                    <Input id="signup-password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
+                    {isLoading ? <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Creating account...
-                      </>
-                    ) : (
-                      'Create Account'
-                    )}
+                      </> : 'Create Account'}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
                     First user to sign up becomes the Company Admin
@@ -263,6 +198,5 @@ export default function Auth() {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
