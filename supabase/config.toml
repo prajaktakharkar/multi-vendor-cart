@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.travel-assistant]
 verify_jwt = false
+
+[functions.transport-agent]
+verify_jwt = false
