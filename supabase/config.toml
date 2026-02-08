@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.plan-procurement]
 verify_jwt = false
+
+[functions.travel-assistant]
+verify_jwt = false
