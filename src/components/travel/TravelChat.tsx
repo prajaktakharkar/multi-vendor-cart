@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import { ChatMessage, type Message } from "./ChatMessage";
 import { Send, Loader2, ArrowLeft, Plane, Building2, MapPin, Car, Save, CheckCircle, Users, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cities } from "@/data/travelData";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useAgentChat, useCrewSession } from "@/hooks/useCrewApi";
@@ -39,6 +38,7 @@ interface TravelPlan {
 
 interface TravelChatProps {
   selectedCity?: string;
+  cityName?: string;
   onBack: () => void;
 }
 
@@ -49,9 +49,9 @@ const quickActions = [
   { icon: Car, label: "Ground transport", prompt: "I need Uber/Lyft for airport transfers" },
 ];
 
-export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
+export const TravelChat = ({ selectedCity, cityName, onBack }: TravelChatProps) => {
   const navigate = useNavigate();
-  const city = cities.find(c => c.id === selectedCity);
+  const displayCityName = cityName || selectedCity;
   const { user, session, role } = useAuth();
   const isAdmin = role === 'company_admin';
   
@@ -72,9 +72,9 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
     {
       id: '1',
       role: 'assistant',
-      content: city 
-        ? `Welcome! I'm your travel planning assistant for ${city.name}. 🎉\n\nI can help you book:\n• ✈️ Flights (via Amadeus/Sabre)\n• 🏨 Hotels\n• 🏛️ Conference venues\n• 🚗 Uber/Lyft transportation\n\nTell me about your group trip—how many people, dates, and what you need!`
-        : `Welcome! I'm your group travel planning assistant. 🌟\n\nI specialize in booking travel for:\n• Business conferences\n• Sports teams (FIFA Cup, tournaments)\n• Corporate retreats\n\nWhich city are you interested in?\n• 🎰 Las Vegas\n• 🎲 Atlantic City\n• 💻 Silicon Valley`,
+      content: displayCityName 
+        ? `Welcome! I'm your travel planning assistant for ${displayCityName}. 🎉\n\nI can help you book:\n• ✈️ Flights (via Amadeus/Sabre)\n• 🏨 Hotels\n• 🏛️ Conference venues\n• 🚗 Uber/Lyft transportation\n\nTell me about your group trip—how many people, dates, and what you need!`
+        : `Welcome! I'm your group travel planning assistant. 🌟\n\nI specialize in booking travel for:\n• Business conferences\n• Sports teams (FIFA Cup, tournaments)\n• Corporate retreats\n\nTell me which city you'd like to travel to and I'll help you plan everything!`,
       timestamp: new Date(),
     }
   ]);
@@ -144,7 +144,7 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
         current_step: 'travel_planning',
         preferences: {
           city: selectedCity,
-          cityName: city?.name,
+          cityName: displayCityName,
         }
       });
       setInput("");
@@ -279,7 +279,7 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
         </Button>
         <div className="flex-1">
           <h2 className="font-semibold text-foreground">
-            {city ? `Planning: ${city.name}` : 'Travel Planning Assistant'}
+            {displayCityName ? `Planning: ${displayCityName}` : 'Travel Planning Assistant'}
           </h2>
           <p className="text-sm text-muted-foreground">
             Flights • Hotels • Venues • Ground Transport
@@ -296,14 +296,6 @@ export const TravelChat = ({ selectedCity, onBack }: TravelChatProps) => {
           <Sparkles className="w-4 h-4" />
           {useCrewAI ? 'CrewAI Active' : 'Use CrewAI'}
         </Button>
-        
-        {city && (
-          <img 
-            src={city.image} 
-            alt={city.name}
-            className="w-12 h-12 rounded-full object-cover border-2 border-primary"
-          />
-        )}
       </div>
       
       {/* CrewAI Session Badge */}
