@@ -168,7 +168,7 @@ export default function Auth() {
                       </> : 'Create Account'}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    First user to sign up becomes the Company Admin
+                    All users sign up as Company Admin by default
                   </p>
                 </form>
               </TabsContent>
