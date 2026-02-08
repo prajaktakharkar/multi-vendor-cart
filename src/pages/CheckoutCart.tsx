@@ -251,12 +251,6 @@ export default function CheckoutCart() {
   };
 
   const handleCheckout = async () => {
-    if (!user) {
-      toast.error("Please sign in to complete checkout");
-      navigate("/auth");
-      return;
-    }
-
     if (!contactName.trim() || !contactEmail.trim()) {
       toast.error("Please fill in contact information");
       setStep("contact");
@@ -283,25 +277,27 @@ export default function CheckoutCart() {
         checkoutRes.booking_id ||
         crypto.randomUUID();
 
-      // Save to database
-      const bookingDetails = {
-        booking_id: masterBookingId,
-        session_id: sessionId,
-        cart: cart,
-        checkout_response: checkoutRes,
-        contact: { name: contactName, email: contactEmail },
-      };
+      // Save to database only if user is logged in
+      if (user) {
+        const bookingDetails = {
+          booking_id: masterBookingId,
+          session_id: sessionId,
+          cart: cart,
+          checkout_response: checkoutRes,
+          contact: { name: contactName, email: contactEmail },
+        };
 
-      const { error: bookingError } = await supabase.from("bookings").insert({
-        user_id: user.id,
-        created_by: user.id,
-        booking_type: "travel_package",
-        status: "confirmed",
-        details: JSON.parse(JSON.stringify(bookingDetails)),
-      });
+        const { error: bookingError } = await supabase.from("bookings").insert({
+          user_id: user.id,
+          created_by: user.id,
+          booking_type: "travel_package",
+          status: "confirmed",
+          details: JSON.parse(JSON.stringify(bookingDetails)),
+        });
 
-      if (bookingError) {
-        console.error("Failed to save booking:", bookingError);
+        if (bookingError) {
+          console.error("Failed to save booking:", bookingError);
+        }
       }
 
       setBookingId(masterBookingId);
@@ -312,7 +308,7 @@ export default function CheckoutCart() {
     } catch (error) {
       console.error("Checkout failed:", error);
       toast.error("Checkout failed. Please try again.");
-      setStep("contact");
+      setStep("payment");
     }
   };
 
