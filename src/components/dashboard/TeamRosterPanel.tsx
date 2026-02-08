@@ -15,10 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, UserCheck, Briefcase, Plane, Plus, Pencil, Trash2, Upload } from 'lucide-react';
+import { Users, UserCheck, Briefcase, Plane, Plus, Pencil, Trash2, Upload, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RosterMemberDialog } from './RosterMemberDialog';
 import { RosterImportDialog } from './RosterImportDialog';
+import { TravelManifestDialog } from './TravelManifestDialog';
 
 interface RosterMember {
   id: string;
@@ -51,6 +52,7 @@ export const TeamRosterPanel = () => {
   const [memberToDelete, setMemberToDelete] = useState<RosterMember | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [manifestDialogOpen, setManifestDialogOpen] = useState(false);
 
   const fetchRoster = async () => {
     const { data, error } = await supabase
@@ -355,6 +357,10 @@ export const TeamRosterPanel = () => {
                   <SelectItem value="Admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+              <Button variant="outline" onClick={() => setManifestDialogOpen(true)}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Export Manifest
+              </Button>
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import CSV
@@ -481,6 +487,14 @@ export const TeamRosterPanel = () => {
         onImport={handleImportMembers}
         loading={importing}
         defaultTeamName={selectedTeam !== 'all' ? selectedTeam : ''}
+      />
+
+      {/* Travel Manifest Export Dialog */}
+      <TravelManifestDialog
+        open={manifestDialogOpen}
+        onOpenChange={setManifestDialogOpen}
+        roster={roster}
+        teams={teams}
       />
     </div>
   );
