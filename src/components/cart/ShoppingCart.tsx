@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { ShoppingCart as CartIcon } from "lucide-react";
+import { ShoppingCart as CartIcon, Sparkles } from "lucide-react";
 import { CartItem, Seller } from "@/types/cart";
 import { mockCartItems, mockSellers } from "@/data/mockCart";
 import { SellerGroup } from "./SellerGroup";
 import { CartSummary } from "./CartSummary";
 import { AIRecommendations } from "./AIRecommendations";
+import { ProcurementPlanner } from "./ProcurementPlanner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export const ShoppingCart = () => {
@@ -34,6 +36,19 @@ export const ShoppingCart = () => {
     toast.success(`Added ${item.name} to cart`);
   };
 
+  const handleAddItemWithQuantity = (item: Omit<CartItem, "quantity">, quantity: number) => {
+    setItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i
+        );
+      }
+      return [...prev, { ...item, quantity }];
+    });
+    toast.success(`Added ${quantity}× ${item.name} to cart`);
+  };
+
   // Group items by seller
   const itemsBySeller = sellers
     .map((seller) => ({
@@ -45,20 +60,6 @@ export const ShoppingCart = () => {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  if (items.length === 0) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center p-8">
-          <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-            <CartIcon className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">Your cart is empty</h2>
-          <p className="text-muted-foreground">Start shopping to add items to your cart</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -66,43 +67,81 @@ export const ShoppingCart = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <CartIcon className="h-8 w-8 text-primary" />
-            Shopping Cart
+            Smart Marketplace
           </h1>
           <p className="text-muted-foreground mt-2">
-            {itemCount} item{itemCount !== 1 ? "s" : ""} from {itemsBySeller.length} seller
-            {itemsBySeller.length !== 1 ? "s" : ""}
+            AI-powered procurement for your business needs
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-6">
-            {itemsBySeller.map(({ seller, items }) => (
-              <SellerGroup
-                key={seller.id}
-                seller={seller}
-                items={items}
-                onUpdateQuantity={handleUpdateQuantity}
-                onRemove={handleRemove}
-              />
-            ))}
-            
-            {/* AI Recommendations */}
-            <AIRecommendations
-              cartItems={items}
-              onAddToCart={handleAddFromRecommendation}
-            />
-          </div>
+        <Tabs defaultValue="planner" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="planner" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Planner
+            </TabsTrigger>
+            <TabsTrigger value="cart" className="flex items-center gap-2">
+              <CartIcon className="h-4 w-4" />
+              Cart ({itemCount})
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Summary */}
-          <div className="lg:col-span-1">
-            <CartSummary
-              subtotal={subtotal}
-              itemCount={itemCount}
-              sellerCount={itemsBySeller.length}
+          <TabsContent value="planner">
+            <ProcurementPlanner
+              onAddAllToCart={(items) => items.forEach(i => handleAddFromRecommendation(i))}
+              onAddItemToCart={handleAddItemWithQuantity}
             />
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="cart">
+            {items.length === 0 ? (
+              <div className="text-center p-12 bg-secondary/30 rounded-2xl">
+                <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CartIcon className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-semibold text-foreground mb-2">Your cart is empty</h2>
+                <p className="text-muted-foreground">Use the AI Planner to find what you need</p>
+              </div>
+            ) : (
+              <div className="grid lg:grid-cols-3 gap-8">
+                {/* Cart Items */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground">
+                      {itemCount} item{itemCount !== 1 ? "s" : ""} from {itemsBySeller.length} seller
+                      {itemsBySeller.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  
+                  {itemsBySeller.map(({ seller, items }) => (
+                    <SellerGroup
+                      key={seller.id}
+                      seller={seller}
+                      items={items}
+                      onUpdateQuantity={handleUpdateQuantity}
+                      onRemove={handleRemove}
+                    />
+                  ))}
+                  
+                  {/* AI Recommendations */}
+                  <AIRecommendations
+                    cartItems={items}
+                    onAddToCart={handleAddFromRecommendation}
+                  />
+                </div>
+
+                {/* Summary */}
+                <div className="lg:col-span-1">
+                  <CartSummary
+                    subtotal={subtotal}
+                    itemCount={itemCount}
+                    sellerCount={itemsBySeller.length}
+                  />
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
